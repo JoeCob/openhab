@@ -1,0 +1,20 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: openHAB IBM IOT Persistence Bundle
+Bundle-SymbolicName: org.openhab.persistence.ibmiot;singleton:=true
+Bundle-Version: 1.7.0.qualifier
+Bundle-Vendor: openHAB.org
+Bundle-RequiredExecutionEnvironment: JavaSE-1.6
+Import-Package: org.apache.commons.io,
+ org.apache.commons.lang,
+ org.openhab.core.items,
+ org.openhab.core.library.types,
+ org.openhab.core.persistence,
+ org.openhab.core.types,
+ org.openhab.io.transport.mqtt,
+ org.osgi.framework,
+ org.osgi.service.cm,
+ org.slf4j
+Bundle-ClassPath: .,
+ lib/json-20090211.jar
+Service-Component: OSGI-INF/ibmiot-persistence.xml
