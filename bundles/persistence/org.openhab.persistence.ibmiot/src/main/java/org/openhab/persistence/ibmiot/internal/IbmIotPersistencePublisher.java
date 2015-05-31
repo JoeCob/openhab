@@ -15,6 +15,7 @@ import java.util.TimerTask;
 
 import org.json.JSONObject;
 import org.openhab.core.items.Item;
+import org.openhab.core.library.types.DecimalType;
 import org.openhab.io.transport.mqtt.MqttMessageProducer;
 import org.openhab.io.transport.mqtt.MqttSenderChannel;
 import org.slf4j.Logger;
@@ -143,6 +144,9 @@ public class IbmIotPersistencePublisher implements MqttMessageProducer {
 					data.put( item.getName() , -999 );}
 				else {
 						data.put( item.getName() ,item.getState() );
+						if (  item.getState() instanceof DecimalType ) { 
+							
+						}
 						//data.put("t", arr );
 					}
 			 }

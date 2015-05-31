@@ -88,8 +88,10 @@ SerialPort serialPort = null;
 private static final Logger logger = LoggerFactory.getLogger(OBDBinding.class);
 
 
-public void refresh() {
+public synchronized void refresh() {
 	// TODO Auto-generated method stub
+	
+	logger.debug("Initiating Refresh" );
 	
 	logger.debug("Calling setAirIntakeTemp" );
 	this.setAirIntakeTemp();
@@ -133,7 +135,8 @@ public void refresh() {
 	this.setDtcCode();
 	logger.debug("Calling setEquivRatio" );
 	this.setEquivRatio();
-	logger.debug("Done" );
+	
+	logger.debug("Refresh Done" );
 	
 
 }
@@ -380,7 +383,7 @@ private void setIntakeManifoldPressure() {
 		this.IntakeManifoldPressure = intakeManifoldPressureCommand.getMetricUnit();
 	} catch (IOException | InterruptedException e) {
 		logger.debug("Error getting IntakeManifoldPressure : {}", e.toString());
-		this.IntakeManifoldPressure = 0;
+		this.IntakeManifoldPressure = -1;
 		e.printStackTrace();
 	}
 }
@@ -418,7 +421,7 @@ private void setEngineRpm() {
 		 engineRPMCommand.run(serialPort.getInputStream(), serialPort.getOutputStream());
 		 this.engineRpm = engineRPMCommand.getRPM();
 	} catch ( Exception e ) {
-		this.engineRpm = -999;
+		this.engineRpm = -1;
 		logger.debug("Error getting RPM : {}", e.toString());
 	}
 }
@@ -432,7 +435,7 @@ private void setSpeed() {
 	speedCommand.run(serialPort.getInputStream(), serialPort.getOutputStream());
 	this.speed = speedCommand.getMetricSpeed();
 	} catch (Exception e ) {
-		this.speed = -999;
+		this.speed = -1;
 		logger.debug("Error getting Speed : {}", e.toString());
 	}
 }

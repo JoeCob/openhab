@@ -63,7 +63,7 @@ public class OBDBinding extends
 	private boolean simulate = false;
 	private String  device = "/dev/ttyUSB01";
 	private int speed = 9600;
-	private int refresh = 1000;
+	private int refresh = 500;
 	private int retry = 60000;
 
 	private OBDDataParser dataParser = null;
@@ -245,7 +245,7 @@ public class OBDBinding extends
 				try {
 					try {
 						while ( (currentTimer - previousTimer) < refresh ) {
-							sleep (100);
+							sleep (refresh - (currentTimer - previousTimer));
 							currentTimer = System.currentTimeMillis() ;
 						}
 					} catch (InterruptedException e1) {
@@ -263,7 +263,7 @@ public class OBDBinding extends
 							boolean found = false;
 							
 							
-							logger.debug("Item being parsed is {}, state {}", provider.getVariable(itemName).toLowerCase(), state );
+							logger.debug("Item being parsed is {}", provider.getVariable(itemName).toLowerCase() );
 							
 							try {
 								

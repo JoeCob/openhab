@@ -62,7 +62,7 @@ public abstract class ObdCommand {
    * @param command
    *          the command to send
    */
-  public ObdCommand(String command) {
+  public  ObdCommand(String command) {
     this.cmd = command;
     this.buffer = new ArrayList<Integer>();
     timer.scheduleAtFixedRate(taskResetState, 60000, 300000 );
@@ -90,14 +90,15 @@ public abstract class ObdCommand {
    * 
    * This method CAN be overriden in fake commands.
    */
-  public void run(InputStream in, OutputStream out) throws IOException,
+  public synchronized void run(InputStream in, OutputStream out) throws IOException,
       InterruptedException {
     if (valid || !this.validityCheck() ) { 
+    	if (!this.validityCheck() ) { logger.debug("Executing command since validity check is off");}
     	sendCommand(out);
     	readResult(in); 
     	} else
     	{ 
-    		logger.debug("Not executing command {} since state is {}", this.getName() , valid);    		
+    		logger.debug("Not executing command {} since state is {}. Validity check is {}.", this.getName() , valid, this.validityCheck());    		
     	}
   }
 
@@ -113,14 +114,14 @@ public abstract class ObdCommand {
   protected void sendCommand(OutputStream out) throws IOException,
       InterruptedException {
 	 
-	String outCmd = cmd += "\r";
+	//String outCmd = cmd + "\r";
     // add the carriage return char
 
-
+	String outCmd = cmd ;
     // write to OutputStream (i.e.: a BluetoothSocket)
-    logger.debug("Writing {}", outCmd.getBytes()  );
+    logger.trace("Writing {}", outCmd.getBytes()  );
     out.write(outCmd.getBytes());
-    logger.debug("Flushing" );
+    logger.trace("Flushing" );
     out.flush();
 
     /*
@@ -147,7 +148,13 @@ public abstract class ObdCommand {
    * This method may be overriden in subclasses, such as ObdMultiCommand.
    */
   protected void readResult(InputStream in) throws IOException {
-    readRawData(in);
+	  
+    try {
+		readRawData(in);
+	} catch (Exception e) {
+		logger.error("Exception when reading data from serial.");
+		e.printStackTrace();
+	}
     checkForErrors();
     fillBuffer();
     performCalculations();
@@ -174,7 +181,7 @@ public abstract class ObdCommand {
     int begin = 0;
     int end = 2;
     while (end <= rawData.length()) {
-      if (valid) { buffer.add(Integer.decode("0x" + rawData.substring(begin, end)));} else {buffer.add(-1);}
+      if (valid || !this.validityCheck() ) { buffer.add(Integer.decode("0x" + rawData.substring(begin, end)));} else {buffer.add(-1);}
       begin = end;
       end += 2;
     }
@@ -188,15 +195,20 @@ public abstract class ObdCommand {
 	  
   }
 
-  protected void readRawData(InputStream in) throws IOException {
+  protected void readRawData(InputStream in) throws IOException, Exception {
     byte b = 0;
     StringBuilder res = new StringBuilder();
 
    
     // read until '>' arrives
     while ((char) (b = (byte) in.read()) != '>') {
-    	logger.debug("<< {} ", b);
+    	logger.trace("<< {} ", b);
         res.append((char) b);
+        
+        if (res.toString().length() > 512) //Watch dog for invalid communication
+        {
+        	break;
+        }
     }
     /*
      * Imagine the following response 41 0c 00 0d.
@@ -216,9 +228,16 @@ public abstract class ObdCommand {
      */
     rawData = rawData.substring(rawData.lastIndexOf(13) + 1);
     
-    if ( rawData.startsWith("7F 01", 0) || rawData.startsWith("UNABLE TO CONNECT", 0) || rawData.startsWith("NO DATA", 0))
+    if ( rawData.startsWith("7F 01", 0)  || rawData.startsWith("NO DATA", 0) || rawData.startsWith("?", 0))
     {
     	valid = false;
+    	logger.debug("OBD readraw :{}, isValid: {}", rawData.toString(), valid);
+    } else if ( rawData.startsWith("UNABLE TO CONNECT", 0)) {
+    	valid = false;
+    	logger.debug("OBD readraw :{}, isValid: {}", rawData.toString(), valid);
+    	logger.debug("Sleeping 10 sec since ECU seems to be off");
+    	Thread.sleep (10*1000);
+    	
     }
     
     logger.debug("OBD readraw :{}, isValid: {}", rawData.toString(), valid);
