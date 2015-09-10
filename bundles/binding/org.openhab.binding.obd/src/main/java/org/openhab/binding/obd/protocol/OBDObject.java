@@ -12,6 +12,7 @@ import pt.lighthouselabs.obd.commands.temperature.*;
 import pt.lighthouselabs.obd.commands.engine.*;
 import pt.lighthouselabs.obd.commands.*;
 import pt.lighthouselabs.obd.commands.fuel.*;
+import pt.lighthouselabs.obd.exceptions.NoDataException;
 
 
 public class OBDObject {
@@ -88,53 +89,65 @@ SerialPort serialPort = null;
 private static final Logger logger = LoggerFactory.getLogger(OBDBinding.class);
 
 
-public synchronized void refresh() {
+public synchronized void refresh() throws IOException {
 	// TODO Auto-generated method stub
 	
 	logger.debug("Initiating Refresh" );
 	
-	logger.debug("Calling setAirIntakeTemp" );
-	this.setAirIntakeTemp();
-	logger.debug("Calling setAmbientAirTemp" );
-	this.setAmbientAirTemp();
-	logger.debug("Calling setEngineCoolantTemp" );
-	this.setEngineCoolantTemp();
-	logger.debug("Calling setEngineLoad" );
-	this.setEngineLoad();
-	logger.debug("Calling setBarometricPressure" );
-	this.setBarometricPressure();
-	logger.debug("Calling setFuelPressure" );
-	this.setFuelPressure();
-	logger.debug("Calling setIntakeManifoldPressure" );
-	this.setIntakeManifoldPressure();
-	logger.debug("Calling setEngineRunTime" );
-	this.setEngineRuntime();
-	logger.debug("Calling setEngineRpm" );
-	this.setEngineRpm();
-	logger.debug("Calling setSpeed" );
-	this.setSpeed();
-	logger.debug("Calling setMaf" );
-	this.setMaf();
-	logger.debug("Calling setThrottle" );
-	this.setThrottle();
-	logger.debug("Calling setFuelLevel" );
-	this.setFuelLevel();
-	logger.debug("Calling setFuelType" );
-	this.setFuelType();
-	logger.debug("Calling setFuelConsumption" );
-	this.setFuelConsumption();
-	logger.debug("Calling setFuelEconomy" );
-	this.setFuelEconomy();
-	logger.debug("Calling setFuelEconomywithMaf" );
-	this.setFuelEconomywithMaf();
-	logger.debug("Calling setFuelEconomyNoMaf" );
-	this.setFuelEconomyNoMaf();
-	logger.debug("Calling setTimingAdvance" );
-	this.setTimingAdvance();
-	logger.debug("Calling setDtcCode" );
-	this.setDtcCode();
-	logger.debug("Calling setEquivRatio" );
-	this.setEquivRatio();
+	try {
+		logger.debug("Calling setAirIntakeTemp" );
+		this.setAirIntakeTemp();
+		logger.debug("Calling setAmbientAirTemp" );
+		this.setAmbientAirTemp();
+		logger.debug("Calling setEngineCoolantTemp" );
+		this.setEngineCoolantTemp();
+		logger.debug("Calling setEngineLoad" );
+		this.setEngineLoad();
+		logger.debug("Calling setBarometricPressure" );
+		this.setBarometricPressure();
+		logger.debug("Calling setFuelPressure" );
+		this.setFuelPressure();
+		logger.debug("Calling setIntakeManifoldPressure" );
+		this.setIntakeManifoldPressure();
+		logger.debug("Calling setEngineRunTime" );
+		this.setEngineRuntime();
+		logger.debug("Calling setEngineRpm" );
+		this.setEngineRpm();
+		logger.debug("Calling setSpeed" );
+		this.setSpeed();
+		logger.debug("Calling setMaf" );
+		this.setMaf();
+		logger.debug("Calling setThrottle" );
+		this.setThrottle();
+		logger.debug("Calling setFuelLevel" );
+		this.setFuelLevel();
+		logger.debug("Calling setFuelType" );
+		this.setFuelType();
+		logger.debug("Calling setFuelConsumption" );
+		this.setFuelConsumption();
+		logger.debug("Calling setFuelEconomy" );
+		this.setFuelEconomy();
+		logger.debug("Calling setFuelEconomywithMaf" );
+		this.setFuelEconomywithMaf();
+		logger.debug("Calling setFuelEconomyNoMaf" );
+		this.setFuelEconomyNoMaf();
+		logger.debug("Calling setTimingAdvance" );
+		this.setTimingAdvance();
+		logger.debug("Calling setDtcCode" );
+		this.setDtcCode();
+		logger.debug("Calling setEquivRatio" );
+		this.setEquivRatio();
+	} catch (IOException e) {
+		// TODO Auto-generated catch block
+		logger.debug("Serial IO failure" );
+		throw new IOException (e);
+	} catch ( NoDataException ndex ) {
+		logger.debug("No Data - {}", ndex.toString());
+	} catch ( Exception ex ) 
+	{
+		logger.debug ( "Exception while pooling from OBD - {}", ex.toString());
+		ex.printStackTrace();
+	}
 	
 	logger.debug("Refresh Done" );
 	
@@ -344,17 +357,19 @@ private void setAmbientAirTemp() {
 
 /**
  * @param engineCoolantTemp the engineCoolantTemp to set
+ * @throws IOException 
  */
-private void setEngineCoolantTemp() {
+private void setEngineCoolantTemp() throws IOException {
 	try {
 		 engineCoolantTemperatureCommand.run(serialPort.getInputStream(), serialPort.getOutputStream());
 		 EngineCoolantTemp = engineCoolantTemperatureCommand.getTemperature();
-		 
 		 logger.debug("Setting engineCoolantTemp to : {}", EngineCoolantTemp );
+		}  catch ( IOException  iex ){
+			throw new IOException (iex);
 		} catch ( Exception e ) {
 			this.EngineCoolantTemp = -999;
-			logger.debug("Error getting AmbientAirTemp : {}", e.toString());
-		}
+			logger.debug("Error getting EngineCoolantTemp : {}", e.toString());
+		} 
 }
 
 
@@ -362,7 +377,7 @@ private void setEngineCoolantTemp() {
  * @param barometricPressure the barometricPressure to set
  */
 private void setBarometricPressure() {
-	BarometricPressure = -1;
+	BarometricPressure = -999;
 }
 
 
@@ -370,20 +385,23 @@ private void setBarometricPressure() {
  * @param fuelPressure the fuelPressure to set
  */
 private void setFuelPressure() {
-	FuelPressure = -1;
+	FuelPressure = -999;
 }
 
 
 /**
  * @param intakeManifoldPressure the intakeManifoldPressure to set
+ * @throws IOException 
  */
-private void setIntakeManifoldPressure() {
+private void setIntakeManifoldPressure() throws IOException {
 	try {
 		intakeManifoldPressureCommand.run(serialPort.getInputStream(), serialPort.getOutputStream());
 		this.IntakeManifoldPressure = intakeManifoldPressureCommand.getMetricUnit();
-	} catch (IOException | InterruptedException e) {
+	} catch ( IOException  iex ){
+		throw new IOException (iex);
+	} catch ( InterruptedException e) {
 		logger.debug("Error getting IntakeManifoldPressure : {}", e.toString());
-		this.IntakeManifoldPressure = -1;
+		this.IntakeManifoldPressure = -999;
 		e.printStackTrace();
 	}
 }
@@ -391,13 +409,16 @@ private void setIntakeManifoldPressure() {
 
 /**
  * @param engineLoad the engineLoad to set
+ * @throws IOException 
  */
-private void setEngineLoad() {
+private void setEngineLoad() throws IOException {
 	try {
 		 engineLoadCommand.run(serialPort.getInputStream(), serialPort.getOutputStream());
 		 this.EngineLoad = engineLoadCommand.getPercentage();
+		} catch ( IOException  iex ){
+			throw new IOException (iex);
 		} catch ( Exception e ) {
-			this.EngineLoad = -1;
+			this.EngineLoad = 0;
 			logger.debug("Error getting EngineLoad : {}", e.toString());
 			
 		}
@@ -415,13 +436,16 @@ private void setEngineRuntime() {
 
 /**
  * @param engineRpm the engineRpm to set
+ * @throws IOException 
  */
-private void setEngineRpm() {
+private void setEngineRpm() throws IOException {
 	try {
 		 engineRPMCommand.run(serialPort.getInputStream(), serialPort.getOutputStream());
 		 this.engineRpm = engineRPMCommand.getRPM();
+	} catch ( IOException  iex ){
+		throw new IOException (iex);
 	} catch ( Exception e ) {
-		this.engineRpm = -1;
+		this.engineRpm = 0;
 		logger.debug("Error getting RPM : {}", e.toString());
 	}
 }
@@ -429,13 +453,16 @@ private void setEngineRpm() {
 
 /**
  * @param speed the speed to set
+ * @throws IOException 
  */
-private void setSpeed() {
+private void setSpeed() throws IOException {
 	try {
 	speedCommand.run(serialPort.getInputStream(), serialPort.getOutputStream());
 	this.speed = speedCommand.getMetricSpeed();
+	} catch ( IOException  iex ){
+		throw new IOException (iex);
 	} catch (Exception e ) {
-		this.speed = -1;
+		this.speed = 0;
 		logger.debug("Error getting Speed : {}", e.toString());
 	}
 }
@@ -457,7 +484,7 @@ private void setThrottle() {
 		throttlePositionCommand.run(serialPort.getInputStream(), serialPort.getOutputStream());
 		this.throttle = throttlePositionCommand.getPercentage();
 	} catch (Exception e ) {
-		this.throttle = -1;
+		this.throttle = 0;
 		logger.debug("Error getting Throttle : {}", e.toString());
 	}
 }
@@ -471,7 +498,7 @@ private void setFuelLevel() {
 		fuelLevelCommand.run(serialPort.getInputStream(), serialPort.getOutputStream());
 		this.fuelLevel = fuelLevelCommand.getFuelLevel();
 	} catch (Exception e ) {
-		this.fuelLevel = -1;
+		this.fuelLevel = -999;
 		logger.debug("Error getting FuelLevel : {}", e.toString());
 	}
 }
@@ -501,10 +528,10 @@ private void setFuelConsumption() {
 			this.fuelConsumption = fuelConsumptionCommand.getLitersPerHour();
 		} else 
 		{
-			this.fuelConsumption = -1;
+			this.fuelConsumption = -999;
 		}
 	} catch (Exception e ) {
-		this.fuelConsumption = -1;
+		this.fuelConsumption = 0;
 		logger.debug("Error getting FuelConsumption : {}", e.toString());
 	}
 }
@@ -514,7 +541,7 @@ private void setFuelConsumption() {
  * @param fuelEconomy the fuelEconomy to set
  */
 private void setFuelEconomy() {
-	this.fuelEconomy = -1;
+	this.fuelEconomy = -999;
 }
 
 
@@ -522,7 +549,7 @@ private void setFuelEconomy() {
  * @param fuelEconomywithMaf the fuelEconomywithMaf to set
  */
 private void setFuelEconomywithMaf() {
-	this.fuelEconomywithMaf = -1;
+	this.fuelEconomywithMaf = -999;
 }
 
 
@@ -530,7 +557,7 @@ private void setFuelEconomywithMaf() {
  * @param fuelEconomyNoMaf the fuelEconomyNoMaf to set
  */
 private void setFuelEconomyNoMaf() {
-	this.fuelEconomyNoMaf = -1;
+	this.fuelEconomyNoMaf = -999;
 }
 
 
@@ -538,7 +565,7 @@ private void setFuelEconomyNoMaf() {
  * @param timingAdvance the timingAdvance to set
  */
 private void setTimingAdvance() {
-	this.timingAdvance = -1;
+	this.timingAdvance = -999;
 }
 
 
@@ -554,7 +581,7 @@ private void setDtcCode() {
  * @param equivRatio the equivRatio to set
  */
 private void setEquivRatio() {
-	this.equivRatio = -1;
+	this.equivRatio = -999;
 }
 
 

@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import pt.lighthouselabs.obd.commands.protocol.FastInitObdCommand;
 import pt.lighthouselabs.obd.exceptions.*;
 
 import org.openhab.binding.obd.internal.OBDBinding;
@@ -31,9 +32,11 @@ public abstract class ObdCommand {
 
   protected ArrayList<Integer> buffer = null;
   protected String cmd = null;
+  protected String reInitCmd = "AT WS";
   protected boolean useImperialUnits = false;
   protected String rawData = null;
   protected boolean valid = true;
+  private int reInitCount = 0;
   
   
   
@@ -92,14 +95,26 @@ public abstract class ObdCommand {
    */
   public synchronized void run(InputStream in, OutputStream out) throws IOException,
       InterruptedException {
+
     if (valid || !this.validityCheck() ) { 
     	if (!this.validityCheck() ) { logger.debug("Executing command since validity check is off");}
+      	if (reInitCount > 50 ) {
+        	logger.debug("Performing a fastReinit at the OBD adapter due to too many NO DATA errors" ) ;
+        	this.sendFastReinit(out);
+        	reInitCount = 0;
+        	try {
+    			Thread.sleep(30000);
+    		} catch (Exception e) {
+    			// TODO Auto-generated catch block
+    			logger.error("Exception in sleep {}", e.toString());
+    			e.printStackTrace();
+    		}
+      	}
     	sendCommand(out);
     	readResult(in); 
-    	} else
-    	{ 
+    } else { 
     		logger.debug("Not executing command {} since state is {}. Validity check is {}.", this.getName() , valid, this.validityCheck());    		
-    	}
+    }
   }
 
   /**
@@ -114,10 +129,11 @@ public abstract class ObdCommand {
   protected void sendCommand(OutputStream out) throws IOException,
       InterruptedException {
 	 
-	//String outCmd = cmd + "\r";
+	
+	String outCmd = cmd + "\r";
     // add the carriage return char
 
-	String outCmd = cmd ;
+	//String outCmd = cmd ;
     // write to OutputStream (i.e.: a BluetoothSocket)
     logger.trace("Writing {}", outCmd.getBytes()  );
     out.write(outCmd.getBytes());
@@ -205,8 +221,9 @@ public abstract class ObdCommand {
     	logger.trace("<< {} ", b);
         res.append((char) b);
         
-        if (res.toString().length() > 512) //Watch dog for invalid communication
+        if (res.toString().length() > 128) //Watch dog for invalid communication
         {
+        	logger.info("Watchdog breaking at serial reading");
         	break;
         }
     }
@@ -228,7 +245,7 @@ public abstract class ObdCommand {
      */
     rawData = rawData.substring(rawData.lastIndexOf(13) + 1);
     
-    if ( rawData.startsWith("7F 01", 0)  || rawData.startsWith("NO DATA", 0) || rawData.startsWith("?", 0))
+    if ( rawData.startsWith("7F 01", 0)  || rawData.startsWith("?", 0))
     {
     	valid = false;
     	logger.debug("OBD readraw :{}, isValid: {}", rawData.toString(), valid);
@@ -238,9 +255,13 @@ public abstract class ObdCommand {
     	logger.debug("Sleeping 10 sec since ECU seems to be off");
     	Thread.sleep (10*1000);
     	
+    } else if ( (rawData.startsWith("NO DATA", 0) && !this.validityCheck())) {
+    	valid = false;
+    	reInitCount++;
+    	logger.debug("No Data on Mandatory Object. This happaned {} times in sequence. ", reInitCount ) ;
+    } else {
+    	valid = true;
     }
-    
-    logger.debug("OBD readraw :{}, isValid: {}", rawData.toString(), valid);
     
 
   }
@@ -309,5 +330,25 @@ public abstract class ObdCommand {
 	// TODO Auto-generated method stub
   return true;
 }
+  
+  protected void sendFastReinit (OutputStream out) throws IOException,
+  InterruptedException {
+ 
+	  logger.debug ("Re-Inititlizing connection. Fast reinit. ");
+	  String outCmd = reInitCmd + "\r";
+	  logger.trace("Writing {}", outCmd.getBytes()  );
+	  out.write(outCmd.getBytes());
+	  logger.trace("Flushing" );
+	  out.flush();
+
+/*
+ * HACK GOLDEN HAMMER ahead!!
+ * 
+ * Due to the time that some systems may take to respond, let's give it
+ * 200ms.
+ */
+	  Thread.sleep(10000);
+	  logger.debug ("Fast reinit done.");
+  }
 
 }

@@ -41,6 +41,8 @@ import gnu.io.UnsupportedCommOperationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import pt.lighthouselabs.obd.commands.protocol.FastInitObdCommand;
+import pt.lighthouselabs.obd.commands.protocol.InitObdCommand;
 import pt.lighthouselabs.obd.commands.protocol.EchoOffObdCommand;
 import pt.lighthouselabs.obd.commands.protocol.LineFeedOffObdCommand;
 import pt.lighthouselabs.obd.commands.protocol.SelectProtocolObdCommand;
@@ -123,6 +125,7 @@ public class OBDJavaConnector extends OBDConnector  {
 							// set port parameters
 							serialPort.setSerialPortParams(speed, SerialPort.DATABITS_8, SerialPort.STOPBITS_1,
 									SerialPort.PARITY_NONE);
+							serialPort.addEventListener(arg0)
 						} catch (Exception e) {
 							logger.debug("Failed to set parameters:  {}: {} ", serialPort.toString(), e.toString() );
 							throw new IOException(e);
@@ -163,22 +166,8 @@ public class OBDJavaConnector extends OBDConnector  {
 						}
 					}
 				
-				//logger.debug("Setting OBD Timeout");
-				
-				//new TimeoutObdCommand(100).run(in, out);
-				
+					
 
-				logger.debug("Setting Echo Off");
-				new EchoOffObdCommand().run(in, out);
-
-				logger.debug("Setting LineFeed Off " );
-				new LineFeedOffObdCommand().run(in, out);
-
-				logger.debug(" Setting Protocol " );
-
-				SelectProtocolObdCommand command = new SelectProtocolObdCommand(ObdProtocols.AUTO);
-				command.run(in, out);
-				logger.debug("Protocol set to {}", command.getFormattedResult() );
 
 				logger.debug("Initializing Data Object" );
 
@@ -227,6 +216,8 @@ public class OBDJavaConnector extends OBDConnector  {
 			return true;
 		}
 		catch (Exception e) {
+			logger.error("Pool failed with error {}", e.toString());
+			e.printStackTrace();
 			return false;
 		}
 	}
@@ -274,4 +265,56 @@ public class OBDJavaConnector extends OBDConnector  {
 		
 		
 	}
+	
+	public boolean fullInit () {
+		
+		try {
+			logger.debug("Re-Initializing OBD Adapter");
+			
+			new InitObdCommand().run(in, out);
+			
+			
+			logger.debug("Setting OBD Timeout");
+			
+			new TimeoutObdCommand(100).run(in, out);
+			
+
+			logger.debug("Setting Echo Off");
+			new EchoOffObdCommand().run(in, out);
+
+			logger.debug("Setting LineFeed Off " );
+			new LineFeedOffObdCommand().run(in, out);
+
+			logger.debug(" Setting Protocol " );
+
+			SelectProtocolObdCommand command = new SelectProtocolObdCommand(ObdProtocols.AUTO);
+			command.run(in, out);
+			logger.debug("Protocol set to {}", command.getFormattedResult() );
+			
+			return true;
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return false;
+		}
+	
+	}
+	
+	
+	public boolean fastInit()  {
+		try {
+			logger.debug("Fatst Re-Initializing OBD Adapter");
+			
+			new FastInitObdCommand().run(in, out);
+			
+			
+			return true;
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return false;
+		}
+	
+	}
+
 }

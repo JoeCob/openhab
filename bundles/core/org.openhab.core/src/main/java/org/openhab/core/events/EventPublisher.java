@@ -8,6 +8,7 @@
  */
 package org.openhab.core.events;
 
+import org.openhab.core.items.Item;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
 
@@ -41,9 +42,9 @@ public interface EventPublisher {
 	 * Initiate asynchronous sending of a status update.
 	 * This method returns immediately to the caller.
 	 * 
-	 * @param itemName name of the item to send the update for
+	 * @param item name of the item to send the update for
 	 * @param newState the new state to send
 	 */
-	public abstract void postUpdate(String itemName, State newState);
+	public abstract void postUpdate(String item, State newState);
 
 }

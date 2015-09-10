@@ -9,6 +9,8 @@
 package org.openhab.persistence.ibmiot.internal;
 
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.TimerTask;
@@ -16,6 +18,7 @@ import java.util.TimerTask;
 import org.json.JSONObject;
 import org.openhab.core.items.Item;
 import org.openhab.core.library.types.DecimalType;
+import org.openhab.core.library.types.PercentType;
 import org.openhab.io.transport.mqtt.MqttMessageProducer;
 import org.openhab.io.transport.mqtt.MqttSenderChannel;
 import org.slf4j.Logger;
@@ -43,7 +46,7 @@ public class IbmIotPersistencePublisher implements MqttMessageProducer {
 	
 	long numDocs = 0;
 	
-	private int timeout = 90000;
+	private int timeout = 300000;
 	
 	private int messageGroupLimit = 500;
 	
@@ -104,8 +107,12 @@ public class IbmIotPersistencePublisher implements MqttMessageProducer {
 		try {
 			numDocs++;
 
+				logger.debug("Item is: {}", item.getState().toString());
+				
 			    data = generateJsonResponse(item);
 				
+			    logger.debug("Response generated was: {}", data.toString());
+			    
 				if ( ( (currentTimer - previousUpdate) > timeout ) || ( numDocs >= messageGroupLimit ) || ( response.toString().length() + data.toString().length() > messageLimit) )
 				{
 					try { 
@@ -126,14 +133,15 @@ public class IbmIotPersistencePublisher implements MqttMessageProducer {
 			
 			catch (Exception e) {
 				logger.debug("Error publishing message {}", e.toString());
+				logger.debug(e.getStackTrace().toString());
 			}
 	}
 	
 	static JSONObject generateJsonResponse(Item item) {
 		JSONObject data = new JSONObject();
-		byte [] bytes = ByteBuffer.allocate(8).putLong(System.currentTimeMillis()).array();
+		//byte [] bytes = ByteBuffer.allocate(8).putLong(System.currentTimeMillis()).array();
 		
-		String arr = String.valueOf(System.currentTimeMillis());
+		//String arr = String.valueOf(System.currentTimeMillis());
 		//Arrays.toString(bytes);
 		
 		//JSONObject response =  new JSONObject();
@@ -143,15 +151,26 @@ public class IbmIotPersistencePublisher implements MqttMessageProducer {
 			if (( item.getState().toString() == "Uninitialized" ) || item.getState().toString() == "Undefined" ) {
 					data.put( item.getName() , -999 );}
 				else {
-						data.put( item.getName() ,item.getState() );
 						if (  item.getState() instanceof DecimalType ) { 
-							
+							BigDecimal bd = new BigDecimal ( item.getState().toString()).setScale(4,  RoundingMode.HALF_UP);
+							logger.debug("Decimal type. Input value is {}, output value is {}.", item.getState().toString(), bd.toString());
+							data.put( item.getName() , bd.setScale(4, RoundingMode.HALF_UP) );
+						} else if (  item.getState() instanceof PercentType ) { 
+							BigDecimal bd = new BigDecimal ( item.getState().toString()).setScale(4,  RoundingMode.HALF_UP);
+							logger.debug("Percent type. Input value is {}, output value is {}.", item.getState().toString(), bd.toString());
+							data.put( item.getName() , bd.setScale(4,  RoundingMode.HALF_UP) );
+						} else 
+						{
+							data.put( item.getName() ,item.getState() );
 						}
-						//data.put("t", arr );
 					}
 			 }
 			return data;
 		} catch ( Exception e){
+			logger.debug("Exception generating respose for item {}. Exceptions was: ", item.getState().toString(), e.toString());
+			logger.debug(e.getMessage());
+			e.printStackTrace();
+			
 		}
 		return null;
 	}

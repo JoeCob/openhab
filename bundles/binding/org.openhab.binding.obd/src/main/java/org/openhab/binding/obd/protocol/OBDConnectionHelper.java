@@ -11,6 +11,8 @@ package org.openhab.binding.obd.protocol;
 import java.util.TimerTask;
 
 import org.openhab.binding.obd.internal.OBDBinding;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Connection helper which can be executed periodically to try to reconnect to a
@@ -22,6 +24,9 @@ import org.openhab.binding.obd.internal.OBDBinding;
 public class OBDConnectionHelper extends TimerTask {
 
 	private OBDBinding connection;
+	
+	private static final Logger logger = LoggerFactory
+			.getLogger(OBDBinding.class);
 
 	/**
 	 * Create new connection helper to help reconnect the given connection.
@@ -36,8 +41,11 @@ public class OBDConnectionHelper extends TimerTask {
 	@Override
 	public void run() {
 		try {
+			logger.info("OBD Connection Helper. Starting connection");
 			connection.activate();
 		} catch (Exception e) {
+			logger.error("Error starting new OBD connections - {}", e.toString());
+			e.printStackTrace();
 			// reconnect failed,
 			// maybe we will have more luck next time...
 		}

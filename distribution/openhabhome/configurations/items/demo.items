@@ -7,6 +7,14 @@ Group Shutters 	(All)
 Group Weather 	(All)
 Group Status 	(All)
 
+
+Number timer "epo" { hpt="500" }
+
+
+Number timer2  { hpt="550" }
+
+
+
 Group GF_Living 	"Living Room" 	<video> 	(gGF)
 Group GF_Kitchen 	"Kitchen" 		<kitchen> 	(gGF)
 Group GF_Toilet 	"Toilet" 		<bath> 		(gGF)

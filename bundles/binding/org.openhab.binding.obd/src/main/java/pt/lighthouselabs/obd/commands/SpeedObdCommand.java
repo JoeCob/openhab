@@ -80,5 +80,12 @@ public class SpeedObdCommand extends ObdCommand implements SystemOfUnits {
   public String getName() {
     return AvailableCommandNames.SPEED.getValue();
   }
+  
+  @Override
+  public boolean validityCheck() {
+    // ignore first two bytes [41 0C] of the response
+
+	return false;
+  }
 
 }

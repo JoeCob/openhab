@@ -237,6 +237,8 @@ public class GPSdBinding extends
 	private class MessageListener extends Thread {
 
 		private boolean interrupted = false;
+		
+		TPVObject location;
 
 		MessageListener() {
 		}
@@ -253,7 +255,11 @@ public class GPSdBinding extends
 			
 			long currentTimer = System.currentTimeMillis();
 			long previousTimer = System.currentTimeMillis();
+			long previousUpdate = System.currentTimeMillis();
+			int locationAgeLimt = 300000; //Time in milliseconds we force location to be sent, even if not updated. 
 			int  pollReturnCode = 0;
+			
+			
 			
 			// as long as no interrupt is requested, continue running
 			while (!interrupted && connector.isConnected() ) {
@@ -276,8 +282,28 @@ public class GPSdBinding extends
 						continue;
 					}
 
-					TPVObject location = connector.receiveGPSObject();
-
+					TPVObject newLocation = connector.receiveGPSObject();
+					
+					if (newLocation.isValid() || location == null) { 
+						logger.debug("Valid  location recieved from GPS.");
+						if ( newLocation.equals(location)) { 
+							logger.debug("Location did not change. Skipping for now");
+							continue;
+						} else {
+							logger.debug("Updating location to {}", newLocation.toString());
+						}
+						location = newLocation;
+					} else {
+						logger.debug("Invalid Location recieved from GPS. Not updating location. ");
+						// Add a force overtime if we stay too long with invalid gps dat
+						if ( (currentTimer - previousUpdate) > locationAgeLimt ) {
+							logger.debug("Continuing location update due to locationAgeLimt ");
+						} else {
+							continue;	
+						}
+					}
+					
+					previousUpdate = currentTimer;
 
 					for (GPSdBindingProvider provider : providers) {
 						for (String itemName : provider.getItemNames()) {
@@ -353,20 +379,23 @@ public class GPSdBinding extends
 								}
 							} catch (Exception e) {
 								// TODO Auto-generated catch block
-								logger.debug("Exception", e.toString());
+								logger.debug("Exception {}", e.toString());
 							}											
 
 							if (found) {
-								   if ( state == null ) 
-								   		{ state = new DecimalType("-1"); }
+								   if ( state == null ) { 
+									    logger.debug("Item {} found but value is invalid. Leaving previous value", itemName.toString());
+								   		//state = new DecimalType("-1"); 
+								   	   }
 								   state = transformData(
 								   provider.getTransformationType(itemName),
 								   provider.getTransformationFunction(itemName),
-								   state);
+								   state); 
+		
 							} else  { 
 								logger.error("Invalid Item: {}", itemName.toString());
 							}
-							logger.debug("Item being parsed is {} with value {}", itemName.toLowerCase(), state.toString() );
+							logger.trace ("Item being parsed is {} with value {}", itemName.toLowerCase(), state.toString() );
 							if (state != null) {
 								eventPublisher.postUpdate(itemName, state);
 							} 

@@ -210,150 +210,159 @@ public class OBDBinding extends
 
 			OBDConnector connector;
 
-		
-			if (simulate == true)
-				connector = new OBDSimulator();
-			else 
-				connector = new OBDJavaConnector(device, speed);
-			try {
-				while ((connector == null || !connector.isConnected()) && !interrupted) {
-					connector.connect();
-					if (!connector.isConnected()) { Thread.sleep(retry) ;}
-				}
-			} catch (Exception e) {
-				logger.error( "Error occured when connecting OBD device", e);
-				logger.warn("Closing OBD message listener");
-				
-				OBDConnectionHelper helper = new OBDConnectionHelper( binding );
-				Timer reconnectTimer = new Timer(true);
-				reconnectTimer.schedule(helper, 10000);
-
-				// exit
-				interrupted = true;
-			}
-			
-			
-			// as long as no interrupt is requested, continue running
-			while (!interrupted ) {
-				
-				long currentTimer = System.currentTimeMillis();
-				long previousTimer = System.currentTimeMillis();
-				int  pollReturnCode = 0;
-				
-				// as long as no interrupt is requested, continue running
-	
+			while (!interrupted) { 
+				if (simulate == true)
+					connector = new OBDSimulator();
+				else 
+					connector = new OBDJavaConnector(device, speed);
 				try {
-					try {
-						while ( (currentTimer - previousTimer) < refresh ) {
-							sleep (refresh - (currentTimer - previousTimer));
-							currentTimer = System.currentTimeMillis() ;
-						}
-					} catch (InterruptedException e1) {
-						// TODO Auto-generated catch block
-						logger.error("General Error at OBD listener thread: {}", e1.toString());	
+					while ((connector == null || !connector.isConnected()) && !interrupted) {
+						connector.connect();
+						if (!connector.isConnected()) { Thread.sleep(retry) ;}
 					}
-					logger.debug("Poll returned {}", connector.poll() );
-					
-					OBDObject data = connector.receiveOBDObject();
+				} catch (Exception e) {
+					logger.error( "Error occured when connecting OBD device", e);
+					logger.warn("Closing OBD message listener");
+
+					OBDConnectionHelper helper = new OBDConnectionHelper( binding );
+					Timer reconnectTimer = new Timer(true);
+					reconnectTimer.schedule(helper, 10000);
+
+					// exit
+					interrupted = true;
+				}
 
 
-					for (OBDBindingProvider provider : providers) {
-						for (String itemName : provider.getItemNames()) {
-							org.openhab.core.types.State state = null;
-							boolean found = false;
-							
-							
-							logger.debug("Item being parsed is {}", provider.getVariable(itemName).toLowerCase() );
-							
+				// as long as we are connected, continue running
+				try {
+					while ( connector.isConnected() ) {
+
+						long currentTimer = System.currentTimeMillis();
+						long previousTimer = System.currentTimeMillis();
+
+						// as long as we are connected and not interruped is requested, continue running
+
+						try {
 							try {
-								
-								switch ( provider.getVariable(itemName).toLowerCase() ) {
-								case "enginerpm":
-									state = new DecimalType(data.getEngineRpm());
-									found = true;
-									break;
-								case "engineload":
-									state = new DecimalType(data.getEngineLoad());
-									found = true;
-									break;
-								case "airintaketemp":
-									state = new DecimalType(data.getAirIntakeTemp());
-									found = true;
-									break;
-								case "ambientairtemp":
-									state = new DecimalType(data.getAmbientAirTemp());
-									found = true;
-									break;
-								case "fueltype":
-									state = new DecimalType(data.getFuelType());
-									found = true;
-									break;
-								case "fuelconsumption":
-									state = new DecimalType(data.getFuelConsumption());
-									found = true;
-									break;			
-								case "enginecoolanttemp":
-									state = new DecimalType(data.getEngineCoolantTemp());
-									found = true;
-									break;	
-								case "throttle":
-									state = new DecimalType(data.getThrottle());
-									found = true;
-									break;		
-								case "fuellevel":
-									state = new DecimalType(data.getFuelLevel());
-									found = true;
-									break;		
-								case "speed":
-									state = new DecimalType(data.getSpeed());
-									found = true;
-									break;		
-
+								while ( (currentTimer - previousTimer) < refresh ) {
+									sleep (refresh - (currentTimer - previousTimer));
+									currentTimer = System.currentTimeMillis() ;
 								}
-								logger.debug("Value for item was  {} ", state.toString() );
-							} catch (Exception e) {
+							} catch (InterruptedException e1) {
 								// TODO Auto-generated catch block
-								logger.error("Error setting OBD value for {} : {}", itemName.toLowerCase() , e.toString());
-							    continue;
-							}											
-									
-							
-							
-							if (found) {
-								   if ( state == null ) 
-								   		{ state = new DecimalType("-1"); }
-								   state = transformData(
-								  provider.getTransformationType(itemName),
-								  provider.getTransformationFunction(itemName),
-								   state);
-								   eventPublisher.postUpdate(itemName, state);
-							} else  { 
-								logger.error("Invalid Item: {}", itemName.toString());
+								logger.error("General Error at OBD listener thread: {}", e1.toString());	
 							}
-							if (interrupted) {
-								break;
+							if (!connector.poll()) { 
+								logger.debug("Poll returned false. Disconnecting." );
+								connector.disconnect();
+								sleep (500);
+								continue;	
+							}
+
+							OBDObject data = connector.receiveOBDObject();
+
+
+							for (OBDBindingProvider provider : providers) {
+								for (String itemName : provider.getItemNames()) {
+									org.openhab.core.types.State state = null;
+									boolean found = false;
+
+
+									logger.debug("Item being parsed is {}", provider.getVariable(itemName).toLowerCase() );
+
+									try {
+
+										switch ( provider.getVariable(itemName).toLowerCase() ) {
+										case "enginerpm":
+											state = new DecimalType(data.getEngineRpm());
+											found = true;
+											break;
+										case "engineload":
+											state = new DecimalType(data.getEngineLoad());
+											found = true;
+											break;
+										case "airintaketemp":
+											state = new DecimalType(data.getAirIntakeTemp());
+											found = true;
+											break;
+										case "ambientairtemp":
+											state = new DecimalType(data.getAmbientAirTemp());
+											found = true;
+											break;
+										case "fueltype":
+											state = new DecimalType(data.getFuelType());
+											found = true;
+											break;
+										case "fuelconsumption":
+											state = new DecimalType(data.getFuelConsumption());
+											found = true;
+											break;			
+										case "enginecoolanttemp":
+											state = new DecimalType(data.getEngineCoolantTemp());
+											found = true;
+											break;	
+										case "throttle":
+											state = new DecimalType(data.getThrottle());
+											found = true;
+											break;		
+										case "fuellevel":
+											state = new DecimalType(data.getFuelLevel());
+											found = true;
+											break;		
+										case "speed":
+											state = new DecimalType(data.getSpeed());
+											found = true;
+											break;		
+
+										}
+										logger.debug("Value for item was  {} ", state.toString() );
+									} catch (Exception e) {
+										// TODO Auto-generated catch block
+										logger.error("Error setting OBD value for {} : {}", itemName.toLowerCase() , e.toString());
+										continue;
+									}											
+
+
+
+									if (found) {
+										if ( state == null ) 
+										{ state = new DecimalType("-1"); }
+										state = transformData(
+												provider.getTransformationType(itemName),
+												provider.getTransformationFunction(itemName),
+												state);
+										eventPublisher.postUpdate(itemName, state);
+									} else  { 
+										logger.error("Invalid Item: {}", itemName.toString());
+									}
+									if (interrupted) {
+										break;
+									}
+								}
+
 							}
 						}
 
+						catch (Exception e) {
+
+							logger.error(
+									"Error occured when received data from OBD device",
+									e);
+
+						}
+						
 					}
+				} catch (OBDException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
 				}
-				
-				catch (Exception e) {
-
-					logger.error(
-							"Error occured when received data from OBD device",
-							e);
-
+				try {
+					connector.disconnect();
+				} catch (OBDException e) {
+					logger.error("Error occured when disconnecting form OBDII  device",e);
 				}
+				connector = null;
 			}
-			try {
-				connector.disconnect();
-			} catch (OBDException e) {
-				logger.error(
-						"Error occured when disconnecting form OBDII  device",
-						e);
-			}
-
 		}
 	}
 	private String replaceVariables(HashMap<String, Number> vals,

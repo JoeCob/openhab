@@ -69,6 +69,8 @@ public class TPVObject implements IGPSObject {
 	
 	private String nmeastring = null;
 	
+	public boolean isValid;
+	
 	
 	/**
 	 * Type tag associated with this GPS sentence; from an NMEA device this is just the NMEA sentence type.
@@ -553,6 +555,20 @@ public class TPVObject implements IGPSObject {
 
 	public void setNmeastring(String nmeastring) {
 		this.nmeastring = nmeastring;
+	}
+	
+	public boolean isValid() {
+		
+		if (Double.isNaN(this.latitude) & Double.isNaN(this.longitude) )
+		{
+			this.isValid = false;
+		} else
+		{
+			this.isValid = true;
+		}
+		return this.isValid;
+		//return !(Double.isNaN(this.latitude) & Double.isNaN(this.longitude) );
+		//return true;
 	}
 	
 }
