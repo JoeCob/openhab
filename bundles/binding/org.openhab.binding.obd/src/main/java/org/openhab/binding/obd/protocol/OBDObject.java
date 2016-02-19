@@ -134,7 +134,13 @@ public synchronized int refresh() throws IOException {
 		logger.debug("Calling setEngineRpm at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
 		this.setEngineRpm();
 		logger.trace("Done calling setEngineRpm at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart );
-		
+
+
+		logger.debug("Calling setSleed at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+		this.setSpeed();
+		logger.trace("Done calling setSpeed at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart );
+
+
 		logger.debug("Calling setEngineLoad at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
 		this.setEngineLoad();
 		
