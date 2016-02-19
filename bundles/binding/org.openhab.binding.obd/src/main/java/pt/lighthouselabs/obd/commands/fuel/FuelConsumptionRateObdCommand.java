@@ -23,7 +23,8 @@ public class FuelConsumptionRateObdCommand extends ObdCommand {
   private float fuelRate = -1.0f;
 
   public FuelConsumptionRateObdCommand() {
-    super("015E");
+    super("015E 01");
+    this.setCheckFrequency(1000);
   }
 
   public FuelConsumptionRateObdCommand(FuelConsumptionRateObdCommand other) {
@@ -33,7 +34,9 @@ public class FuelConsumptionRateObdCommand extends ObdCommand {
   @Override
   protected void performCalculations() {
     // ignore first two bytes [hh hh] of the response
-    fuelRate = (buffer.get(2) * 256 + buffer.get(3)) * 0.05f;
+	 if (isValid()) {
+		 fuelRate = (buffer.get(2) * 256 + buffer.get(3)) * 0.05f;
+	 } 
   }
 
   @Override

@@ -25,6 +25,7 @@ public enum AvailableCommandNames {
   ENGINE_LOAD("Engine Load"),
   ENGINE_RUNTIME("Engine Runtime"),
   ENGINE_RPM("Engine RPM"),
+  ENGINE_OXYG1("Oxygen Sensor 1"),
   SPEED("Vehicle Speed"),
   MAF("Mass Air Flow"),
   THROTTLE_POS("Throttle Position"),

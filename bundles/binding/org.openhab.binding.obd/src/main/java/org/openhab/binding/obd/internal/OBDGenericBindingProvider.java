@@ -49,8 +49,7 @@ public class OBDGenericBindingProvider extends
 			.compile("(.*?)\\((.*)\\)");
 
 	
-	private static Logger logger = LoggerFactory
-			.getLogger(OBDActivator.class);
+	private static Logger logger = LoggerFactory.getLogger(OBDActivator.class);
 	/**
 	 * {@inheritDoc}
 	 */

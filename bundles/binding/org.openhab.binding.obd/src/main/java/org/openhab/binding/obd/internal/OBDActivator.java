@@ -34,7 +34,10 @@ public final class OBDActivator implements BundleActivator {
 	 */
 	public void start(BundleContext bc) throws Exception {
 		context = bc;
-		logger.info("OBD binding has been started.");
+		logger.info("OBD binding has been started. v1.1");
+		//V1.1 - Changes to variables to try to reduce garbage generation. 
+		//	   - Moved MAF calculation to setMaf instead of getMaf. 
+		
 	}
 
 	/**

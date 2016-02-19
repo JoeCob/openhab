@@ -24,7 +24,8 @@ public class ThrottlePositionObdCommand extends PercentageObdCommand {
    * Default ctor.
    */
   public ThrottlePositionObdCommand() {
-    super("0111");
+    super("0111 01");
+    this.setCheckFrequency(1000);
   }
 
   /**
@@ -42,6 +43,17 @@ public class ThrottlePositionObdCommand extends PercentageObdCommand {
   @Override
   public String getName() {
     return AvailableCommandNames.THROTTLE_POS.getValue();
+  }
+  
+  @Override
+  protected void performCalculations() {
+  	// TODO Check Formula
+  	  if ( isValid() ) {
+  		  setPercentage((buffer.get(2) * 100.0f) / 255.0f); }
+  	  else {
+  		  setPercentage(-1);
+  	  }
+  	
   }
 
 }

@@ -52,9 +52,9 @@ public abstract class OBDConnector {
 	 * @throws OBDException
 	 */
 	
-	public boolean  poll() throws OBDException {
+	public int  poll() throws OBDException {
 		// TODO Auto-generated method stub
-		return false;
+		return -1;
 	}
 	
 	public boolean isConnected() throws OBDException {
@@ -62,4 +62,14 @@ public abstract class OBDConnector {
 		return false;
 	}
 	
+	public boolean fastInit()  {
+		return false;
+	}
+	public boolean fullInit () {
+		return false;
+	}
+	
+	public boolean reinit() {
+		return false;
+	}
 }

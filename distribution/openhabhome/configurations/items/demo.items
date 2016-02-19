@@ -131,3 +131,9 @@ Number NoOfPairedDevices "Paired Devices in Range: [%d]"  { bluetooth="!" }
 
 /* Locations */
 Location DemoLocation			"Brandenburg Gate Berlin"
+
+
+String DISPLAY_Screen0_Line1 "Display 0:1"    { mqttdisplay="0;1;RPM: ${OBD_enginerpm} - Load: ${OBD_engineload}"}
+String DISPLAY_Screen0_Line2 "Display 0:2"    { mqttdisplay="0;2;Internet - ${NET_WAN}"}
+String DISPLAY_Screen0_Line3 "Display 0:3"    { mqttdisplay="0;3;Consumo - ${OBDCALCULATED_kml} - Temp - ${OBD_coolanttemp}"}
+String DISPLAY_Screen0_Line4 "Display 0:4"    { mqttdisplay="0;4;Epoch: ${t} - Data e Hora: "}

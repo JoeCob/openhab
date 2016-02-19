@@ -382,6 +382,9 @@ public class TPVObject implements IGPSObject {
 	 * @return the mode
 	 */
 	public ENMEAMode getMode() {
+		if (this.mode == null) { 
+			return mode.NotSeen;
+		}
 		return this.mode;
 	}
 	

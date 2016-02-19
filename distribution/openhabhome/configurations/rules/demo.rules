@@ -1,9 +1,11 @@
 import org.openhab.core.library.types.*
 import org.openhab.core.persistence.*
 import org.openhab.model.script.actions.*
+import org.openhab.actions.openmap.*
 
 var Number counter = 1
 var Timer timer = null
+
 
 /**
  * This is a demo rule which simulates a real dimmer by reacting to increase/decrease commands 
@@ -39,6 +41,23 @@ rule "Select Radio Station"
 			case 3 : playStream("http://edge.live.mp3.mdn.newmedia.nacamar.net/radioffh/livestream.mp3.m3u")
 		}
 end
+
+
+/**
+ * This rule demonstrates how a NumberItem can be used to easily control the local sound system.
+ * A selection widget in the UI provides easy access for this
+ */
+rule "Update Reverse Geolocation"
+	when
+		Item Light_GF_Corridor_Ceiling received update
+	then {
+		getReverseGeolocationObject (-29.942885, -50.9152072)
+	    var String streetName = getStreetName()
+	    sendXbmcNotification("test",80,"test","test","test",10)
+		postUpdate("GPSGEO_CurrentStreen", "test")
+	}
+end
+
 
 /**
  * This rules controls the volume on the local host

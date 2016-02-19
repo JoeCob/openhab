@@ -26,7 +26,8 @@ public class EngineRuntimeObdCommand extends ObdCommand {
    * Default ctor.
    */
   public EngineRuntimeObdCommand() {
-    super("011F");
+    super("011F 01");
+    this.setCheckFrequency(1800000);
   }
 
   /**

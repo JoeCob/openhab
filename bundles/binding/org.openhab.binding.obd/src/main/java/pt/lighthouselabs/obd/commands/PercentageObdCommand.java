@@ -33,15 +33,7 @@ public abstract class PercentageObdCommand extends ObdCommand {
     super(other);
   }
 
-  @Override
-  protected void performCalculations() {
-    // ignore first two bytes [hh hh] of the response
-	  if ( isValid() ) {
-		  percentage = (buffer.get(2) * 100.0f) / 255.0f; }
-	  else {
-		  percentage = -1;
-	  }
-  }
+
 
   /**
 	 * 
@@ -49,7 +41,7 @@ public abstract class PercentageObdCommand extends ObdCommand {
   @Override
   public String getFormattedResult() {
 	  if (isValid()) {
-		  return String.format("%.1f%s", percentage, "%");}
+		  return String.format("%.1f%s", getPercentage(), "%");}
 	  else {
 		  return "NO DATA";
 	  }
@@ -58,5 +50,9 @@ public abstract class PercentageObdCommand extends ObdCommand {
   public float getPercentage() {
     return percentage;
   }
+
+public void setPercentage(float percentage) {
+	this.percentage = percentage;
+}
 
 }

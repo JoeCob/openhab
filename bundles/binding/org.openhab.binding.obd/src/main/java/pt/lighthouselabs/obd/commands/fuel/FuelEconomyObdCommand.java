@@ -32,6 +32,7 @@ public class FuelEconomyObdCommand extends ObdCommand {
    */
   public FuelEconomyObdCommand() {
     super("");
+    this.setCheckFrequency(2000);
   }
 
   @Override

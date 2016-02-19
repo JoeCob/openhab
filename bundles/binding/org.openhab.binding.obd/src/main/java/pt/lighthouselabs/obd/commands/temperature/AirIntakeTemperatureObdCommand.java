@@ -20,7 +20,8 @@ import pt.lighthouselabs.obd.enums.AvailableCommandNames;
 public class AirIntakeTemperatureObdCommand extends TemperatureObdCommand {
 
   public AirIntakeTemperatureObdCommand() {
-    super("010F");
+    super("010F 01");
+    this.setCheckFrequency(1000);
   }
 
   public AirIntakeTemperatureObdCommand(AirIntakeTemperatureObdCommand other) {

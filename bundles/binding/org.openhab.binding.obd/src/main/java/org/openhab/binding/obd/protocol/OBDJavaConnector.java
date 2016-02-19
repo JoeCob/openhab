@@ -22,17 +22,17 @@ import org.openhab.binding.obd.internal.OBDException;
 //import org.openhab.binding.serial.internal.InitializationException;
 
 
-import java.io.DataOutputStream;
+//import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
 
-import org.apache.commons.io.IOUtils;
+//import org.apache.commons.io.IOUtils;
 
-import gnu.io.CommPort;
+//import gnu.io.CommPort;
 import gnu.io.CommPortIdentifier;
-import gnu.io.NRSerialPort;
+//import gnu.io.NRSerialPort;
 import gnu.io.PortInUseException;
 import gnu.io.SerialPort;
 import gnu.io.UnsupportedCommOperationException;
@@ -61,6 +61,7 @@ public class OBDJavaConnector extends OBDConnector  {
 	private static final Logger logger = LoggerFactory
 			.getLogger(OBDJavaConnector.class);
 
+	
 	static final int MAX_PACKET_SIZE = 255;
 
 	CommPortIdentifier portIdentifier = null;
@@ -76,6 +77,7 @@ public class OBDJavaConnector extends OBDConnector  {
 	boolean connected = false; 
 	OBDObject ecuData = new OBDObject();
 	int speed = 9600;
+	int commDelay = 50;
 	
 	
 
@@ -89,6 +91,15 @@ public class OBDJavaConnector extends OBDConnector  {
 		this.device = device;
 		this.speed = speed;
 	}
+	
+	public OBDJavaConnector(String device, int speed, int delay) {
+		// TODO Auto-generated constructor stub
+		this.device = device;
+		this.speed = speed;
+		//this.commDelay = delay;
+		//ecuData.setDelay ( delay );
+	}
+
 
 	@Override
 	public void connect() throws OBDException {
@@ -125,7 +136,7 @@ public class OBDJavaConnector extends OBDConnector  {
 							// set port parameters
 							serialPort.setSerialPortParams(speed, SerialPort.DATABITS_8, SerialPort.STOPBITS_1,
 									SerialPort.PARITY_NONE);
-							serialPort.addEventListener(arg0)
+							//serialPort.addEventListener();
 						} catch (Exception e) {
 							logger.debug("Failed to set parameters:  {}: {} ", serialPort.toString(), e.toString() );
 							throw new IOException(e);
@@ -167,11 +178,11 @@ public class OBDJavaConnector extends OBDConnector  {
 					}
 				
 					
-
+					
 
 				logger.debug("Initializing Data Object" );
 
-				ecuData.init ( serialPort );
+				ecuData.init ( serialPort , commDelay);
 
 				logger.debug("OBD Serial Connected " );
 
@@ -193,6 +204,7 @@ public class OBDJavaConnector extends OBDConnector  {
 	@Override
 	public void disconnect() throws OBDException {
 		connected = false;
+		serialPort.close();
 
 	}
 
@@ -209,16 +221,16 @@ public class OBDJavaConnector extends OBDConnector  {
 		
 	}
 	
-	public boolean poll() throws OBDException { 
-	
+	public int poll() throws OBDException { 
+		
 		try {
-			ecuData.refresh();
-			return true;
+		     // Should return a status. 0 is ok, -1 is error, 1 is warning like unable to connect. 
+			return ecuData.refresh();
 		}
 		catch (Exception e) {
 			logger.error("Pool failed with error {}", e.toString());
 			e.printStackTrace();
-			return false;
+			return -1;
 		}
 	}
 	
@@ -266,6 +278,23 @@ public class OBDJavaConnector extends OBDConnector  {
 		
 	}
 	
+	public boolean reinit() { 
+		
+		try {
+			this.disconnect();
+			Thread.sleep(5000);
+			this.connect();
+			
+			return this.connected;
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return false;
+		}
+		
+	}
+	
+	
 	public boolean fullInit () {
 		
 		try {
@@ -289,6 +318,7 @@ public class OBDJavaConnector extends OBDConnector  {
 
 			SelectProtocolObdCommand command = new SelectProtocolObdCommand(ObdProtocols.AUTO);
 			command.run(in, out);
+			
 			logger.debug("Protocol set to {}", command.getFormattedResult() );
 			
 			return true;

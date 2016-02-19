@@ -23,7 +23,8 @@ public class AmbientAirTemperatureObdCommand extends TemperatureObdCommand {
    * @param cmd
    */
   public AmbientAirTemperatureObdCommand() {
-    super("0146");
+    super("0146 01");
+    this.setCheckFrequency(30000);
   }
 
   /**

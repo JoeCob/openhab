@@ -15,7 +15,10 @@ import java.util.Map.Entry;
 
 //import javax.xml.bind.DatatypeConverter;
 
-import net.astesana.javaluator.DoubleEvaluator;
+//import net.astesana.javaluator.DoubleEvaluator;
+
+import org.openhab.core.items.ItemNotFoundException;
+import org.openhab.core.items.ItemRegistry;
 
 import org.apache.commons.lang.StringUtils;
 import org.openhab.binding.gpsd.GPSdBindingProvider;
@@ -58,8 +61,11 @@ public class GPSdBinding extends
 	private boolean simulate = false;
 	private String  hostname = "10.0.1.23";
 	private int	    port	 = 2947;
+	private boolean movementTrack = false;
+	private String  movementItem = "";
+	private ItemRegistry itemRegistry;
 
-	private GPSdDataParser dataParser = null;
+//	private GPSdDataParser dataParser = null;
 	private GPSdConnector connector;
 
 	/** Thread to handle messages from GPSd Server devices */
@@ -68,6 +74,9 @@ public class GPSdBinding extends
 	private int connectionRetryTime = 30000;
 
 	private int connectionRetryCount = 100;
+	
+	private double maxChangeThres = 30; 
+	
 
 	private int refresh =1000;
 
@@ -153,7 +162,21 @@ public class GPSdBinding extends
 					this.setConnectionRetryTime(Integer.parseInt(value));
 					logger.info("connectionretrytime  set to {}", value);
 					
-				} else 	if (key.equals("refresh")) {
+				} else if (key.equals("movementtracking")) {
+					this.setMovementTrack(value.toLowerCase().equalsIgnoreCase("true") ?  true : false);
+					logger.info("trackMovement  set to {}" , this.movementTrack );
+				
+				} else if (key.equals("maxchangethres")) {
+						this.maxChangeThres = Double.parseDouble(value);
+						logger.info("Movement Threshold   set to {}" , this.maxChangeThres );
+						
+				} else 	if (key.equals("movementitem")) {
+					if (StringUtils.isNotBlank(value)) { 
+						this.setMovementItem(value);
+					}
+					logger.info("movementitem  set to {}", value);
+					
+				} else if (key.equals("refresh")) {
 					this.setRefresh(Integer.parseInt(value));
 					logger.info("Refresh  set to {}", value);
 					
@@ -176,7 +199,7 @@ public class GPSdBinding extends
             
 			if (parsingRules != null) {
 				logger.debug("GPSd Data Parser called");
-				dataParser = new GPSdDataParser(parsingRules);
+//				dataParser = new GPSdDataParser(parsingRules);
 				
 				
 			}
@@ -238,7 +261,8 @@ public class GPSdBinding extends
 
 		private boolean interrupted = false;
 		
-		TPVObject location;
+		TPVObject location = new TPVObject();
+		TPVObject previousLocation = new TPVObject();
 
 		MessageListener() {
 		}
@@ -258,46 +282,73 @@ public class GPSdBinding extends
 			long previousUpdate = System.currentTimeMillis();
 			int locationAgeLimt = 300000; //Time in milliseconds we force location to be sent, even if not updated. 
 			int  pollReturnCode = 0;
-			
-			
+			boolean found = false;
+			//boolean changed; // Controls weather we should force a new read due to a major change (like course change detection). 
+			TPVObject newLocation = null;
 			
 			// as long as no interrupt is requested, continue running
 			while (!interrupted && connector.isConnected() ) {
+				//changed = false; //Clears any change detected in previous updates. 
+				
+
 				try {
-					while ( (currentTimer - previousTimer) < getRefresh() ) {
-						sleep (10000);
-						currentTimer = System.currentTimeMillis() ;
+					if (!shouldUpdate() && previousLocation.isValid ) { 
+						Thread.sleep(2000);
+						continue;
 					}
-				} catch (InterruptedException e1) {
+					while ( (currentTimer - previousTimer) < getRefresh() ) {
+						sleep (1000);
+						newLocation = connector.receiveGPSObject();
+						
+						//Fix any invalid previous location.
+						if (!previousLocation.isValid && newLocation.isValid) {
+							previousLocation = newLocation;
+						}
+						
+						//Detects course change above 20 degrees 
+						if (newLocation.isValid) {
+							if ((Math.abs(newLocation.getCourse() - previousLocation.getCourse()) >  getCourseChangeThres())  && ( newLocation.getCourse() > 0 ) && ( previousLocation.getCourse() > 0 ) ) {
+								logger.info ( "Location Changed above threshold. Previous Course was {}. New Course is {}", previousLocation.getCourse(), newLocation.getCourse());
+								break;
+								//changed = true;
+							}
+						} else { 
+							continue;
+						}
+						currentTimer = System.currentTimeMillis() ;
+						//logger.trace("Gpsd looping");
+					} // Add Code to detect change in direction. 
+					
+					logger.trace ("Location being updated");
+					
+				} catch (GPSdException exgps) { 
+					logger.info("GPS seems not initialized. Waiting for first fix. ");
+				}
+				catch (Exception e1) {
 					// TODO Auto-generated catch block
 					logger.error("General Error at GPSd listener thread: {}", e1.toString());	
 				}
 				try {
 					previousTimer = currentTimer;
-					
-					pollReturnCode = connector.poll();
-					
-					logger.debug("Poll returned: {}", pollReturnCode );
-					if (pollReturnCode < 1 ) {
-						continue;
-					}
+				
 
-					TPVObject newLocation = connector.receiveGPSObject();
+					//TPVObject newLocation = connector.receiveGPSObject();
 					
 					if (newLocation.isValid() || location == null) { 
-						logger.debug("Valid  location recieved from GPS.");
-						if ( newLocation.equals(location)) { 
+						logger.trace("Valid  location recieved from GPS.");
+						/*if ( newLocation.equals(location)) { 
 							logger.debug("Location did not change. Skipping for now");
 							continue;
 						} else {
 							logger.debug("Updating location to {}", newLocation.toString());
-						}
+						}*/
+						previousLocation = location;
 						location = newLocation;
 					} else {
 						logger.debug("Invalid Location recieved from GPS. Not updating location. ");
 						// Add a force overtime if we stay too long with invalid gps dat
 						if ( (currentTimer - previousUpdate) > locationAgeLimt ) {
-							logger.debug("Continuing location update due to locationAgeLimt ");
+							logger.trace("Continuing location update due to locationAgeLimt ");
 						} else {
 							continue;	
 						}
@@ -308,9 +359,9 @@ public class GPSdBinding extends
 					for (GPSdBindingProvider provider : providers) {
 						for (String itemName : provider.getItemNames()) {
 							org.openhab.core.types.State state = null;
-							boolean found = false;
+							found = false;
 							try {
-								switch ( itemName.toLowerCase() ) {
+								switch ( provider.getVariable(itemName).toLowerCase() ) {
 								case "latitude":
 									found = true;
 									state = new DecimalType(location.getLatitude());
@@ -376,6 +427,14 @@ public class GPSdBinding extends
 									found = true;
 									state = new DecimalType(location.getClimbRate());
 									break;
+								case "mode":
+									found = true;
+									state = new StringType(location.getMode().toString());
+									break;
+								case "location":
+									found = true;
+									state = new StringType( String.valueOf(location.getLatitude()) + "," + String.valueOf(location.getLongitude()));
+									break;
 								}
 							} catch (Exception e) {
 								// TODO Auto-generated catch block
@@ -395,7 +454,7 @@ public class GPSdBinding extends
 							} else  { 
 								logger.error("Invalid Item: {}", itemName.toString());
 							}
-							logger.trace ("Item being parsed is {} with value {}", itemName.toLowerCase(), state.toString() );
+							//logger.trace ("Item being parsed is {} with value {}", itemName.toLowerCase(), state.toString() );
 							if (state != null) {
 								eventPublisher.postUpdate(itemName, state);
 							} 
@@ -415,15 +474,20 @@ public class GPSdBinding extends
 
 				}
 			}
+			
+			logger.debug("GPSd Run Thread exited.");
+			
 			try {
 				connector.disconnect();
 			} catch (GPSdException e) {
-				logger.error(
-						"Error occured when disconnecting form Open Energy Monitor device",
+				logger.error("Error occured when disconnecting form GPSd device",
 						e);
 			}
 
 		}
+
+
+
 	}
 	private String replaceVariables(HashMap<String, Number> vals,
 			String variable) {
@@ -522,5 +586,55 @@ public class GPSdBinding extends
 	private  void setConnectionRetryTime(int connectionRetryTime) {
 		this.connectionRetryTime = connectionRetryTime;
 	}
+
+
+	public boolean isMovementTrack() {
+		return movementTrack;
+	}
+
+	private boolean shouldUpdate() { 
+		if (isMovementTrack() && !getMovementItem().isEmpty()) { 
+			try {
+				return itemRegistry.getItem(getMovementItem()).getState().toString() == "ON" ?  true:  false;
+			} catch (ItemNotFoundException e) {
+				// TODO Auto-generated catch block
+				logger.trace ("Movement Tracking Item not found.");
+				return false;
+			}
+		} else {
+			return true; //Defaults to Update
+		}
+		
+		
+		
+	}
+
+	private void setMovementTrack(boolean movementTrack) {
+		this.movementTrack = movementTrack;
+	}
+
+
+	public String getMovementItem() {
+		return movementItem;
+	}
+
+
+	public void setMovementItem(String movementItem) {
+		this.movementItem = movementItem;
+	}
+	
+	public void setItemRegistry(ItemRegistry itemRegistry) {
+		this.itemRegistry = itemRegistry;
+	}
+
+	public void unsetItemRegistry(ItemRegistry itemRegistry) {
+		this.itemRegistry = null;
+	}
+	
+	private double getCourseChangeThres() {
+		// TODO Auto-generated method stub
+		return this.maxChangeThres;
+	}
+	
 	
 }

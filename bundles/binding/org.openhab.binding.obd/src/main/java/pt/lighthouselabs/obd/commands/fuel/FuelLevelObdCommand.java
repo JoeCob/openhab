@@ -23,7 +23,8 @@ public class FuelLevelObdCommand extends ObdCommand {
   private float fuelLevel = 0f;
 
   public FuelLevelObdCommand() {
-    super("012F");
+    super("012F 01");
+    this.setCheckFrequency(60000);
   }
 
   @Override

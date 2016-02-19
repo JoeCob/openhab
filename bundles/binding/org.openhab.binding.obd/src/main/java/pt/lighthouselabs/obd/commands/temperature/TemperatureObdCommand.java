@@ -22,6 +22,7 @@ public abstract class TemperatureObdCommand extends ObdCommand implements
     SystemOfUnits {
 
   private float temperature = 0.0f;
+  private float INVALID = -99f;
 
   /**
    * Default ctor.
@@ -48,7 +49,7 @@ public abstract class TemperatureObdCommand extends ObdCommand implements
 		  temperature = buffer.get(2) - 40;
 	  } else
 	  {
-		  temperature = -99;
+		  temperature = INVALID;
 	  }
   }
 
@@ -72,7 +73,11 @@ public abstract class TemperatureObdCommand extends ObdCommand implements
    * @return the temperature in Celsius.
    */
   public float getTemperature() {
-    return temperature;
+	if (valid) { 
+		return temperature;
+	} else {
+		return INVALID;
+	}
   }
 
   /**

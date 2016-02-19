@@ -26,7 +26,8 @@ public class MassAirFlowObdCommand extends ObdCommand {
    * Default ctor.
    */
   public MassAirFlowObdCommand() {
-    super("0110");
+    super("0110 01");
+    this.setCheckFrequency(1000);
   }
 
   /**
@@ -56,7 +57,7 @@ public class MassAirFlowObdCommand extends ObdCommand {
   /**
    * @return MAF value for further calculus.
    */
-  public double getMAF() {
+  public float getMAF() {
     return maf;
   }
 

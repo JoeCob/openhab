@@ -21,7 +21,8 @@ import pt.lighthouselabs.obd.enums.AvailableCommandNames;
 public class EngineLoadObdCommand extends PercentageObdCommand {
 
   public EngineLoadObdCommand() {
-    super("0104");
+    super("0104 01");
+    this.setCheckFrequency(1000);
   }
 
   /**
@@ -31,6 +32,16 @@ public class EngineLoadObdCommand extends PercentageObdCommand {
     super(other);
   }
 
+  @Override
+  protected void performCalculations() {
+    // ignore first two bytes [hh hh] of the response
+	  if ( isValid() ) {
+		  setPercentage((buffer.get(2) * 100.0f) / 255.0f); }
+	  else {
+		  setPercentage(-1);
+	  }
+  }
+  
   /*
    * (non-Javadoc)
    * 

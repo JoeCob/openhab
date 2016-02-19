@@ -20,7 +20,8 @@ import pt.lighthouselabs.obd.enums.AvailableCommandNames;
 public class BarometricPressureObdCommand extends PressureObdCommand {
 
   public BarometricPressureObdCommand() {
-    super("0133");
+    super("0133 01");
+    this.setCheckFrequency(1000);
   }
 
   /**

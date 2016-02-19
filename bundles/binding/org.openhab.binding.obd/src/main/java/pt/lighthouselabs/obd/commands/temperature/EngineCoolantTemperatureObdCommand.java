@@ -23,7 +23,8 @@ public class EngineCoolantTemperatureObdCommand extends TemperatureObdCommand {
 	 * 
 	 */
   public EngineCoolantTemperatureObdCommand() {
-    super("0105");
+    super("0105 01");
+    this.setCheckFrequency(30000);
   }
 
   /**

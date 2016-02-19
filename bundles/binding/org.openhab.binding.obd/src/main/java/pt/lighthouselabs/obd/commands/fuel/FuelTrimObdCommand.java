@@ -31,6 +31,7 @@ public class FuelTrimObdCommand extends ObdCommand {
    */
   public FuelTrimObdCommand(final FuelTrim bank) {
     super(bank.buildObdCommand());
+    this.setCheckFrequency(1000);
     this.bank = bank;
   }
 

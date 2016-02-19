@@ -23,7 +23,8 @@ public class IntakeManifoldPressureObdCommand extends PressureObdCommand {
    * Default ctor.
    */
   public IntakeManifoldPressureObdCommand() {
-    super("010B");
+    super("010B 01");
+    this.setCheckFrequency(1000);
   }
 
   /**
@@ -38,6 +39,13 @@ public class IntakeManifoldPressureObdCommand extends PressureObdCommand {
   @Override
   public String getName() {
     return AvailableCommandNames.INTAKE_MANIFOLD_PRESSURE.getValue();
+  }
+  
+  @Override
+  public boolean validityCheck() {
+    // ignore first two bytes [41 0C] of the response
+
+	return false;
   }
 
 }

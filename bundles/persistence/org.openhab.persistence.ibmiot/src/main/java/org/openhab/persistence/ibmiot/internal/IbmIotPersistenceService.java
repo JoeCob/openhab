@@ -68,13 +68,15 @@ public class IbmIotPersistenceService implements PersistenceService, ManagedServ
 
 	private IbmIotPersistencePublisher publisher;
 	
-	private int timeout = 90000;
+	private int timeout = 300000;
 	
 	private int messageGroupLimit = 500;
 	
-	private int messageLimit = 4096;
+	private int messageLimit = 4000;
 
 	private boolean configured;
+	
+	String value;
 
 	/**
 	 * Start the persistence service.
@@ -87,17 +89,23 @@ public class IbmIotPersistenceService implements PersistenceService, ManagedServ
 		}
 		
 
-		logger.debug("Activating IBM IoT Persistence");
+		logger.debug("Activating IBM IoT Persistence v 1.4");
+		// V1.1 - Moved variables to reduce memory stress on Garbage collector
+		// V1.2 - Fixed issut with not initializing offline cache properly. 
+		// V1.3 - Changed offline caching to use DBObject.
+		// V1.4 - Using timer to persist data. 
+		//        - Changed transport to throw exception in case of unstarted publisher. 
 		try {
 			mqttService.activate();
 			// create a new message publisher and register it
 			publisher = new IbmIotPersistencePublisher(topic, timeout, messageGroupLimit, messageLimit);
 			mqttService.registerMessageProducer(brokerName, publisher);
+			logger.debug ("IBM IoT Persistence activated. Publisher object is {}", publisher.toString());
 			
 		} catch (Exception e) 
-		{ logger.debug("IoT Exception {}", e.toString());}
-
-	}
+		{ 
+			logger.debug("IoT Exception {}", e.toString());}
+		}
 
 	/**
 	 * Shut down the persistence service.
@@ -142,7 +150,7 @@ public class IbmIotPersistenceService implements PersistenceService, ManagedServ
 	 */
 	private String getProperty(Dictionary<String, ?> properties, String name) throws ConfigurationException {
 
-		String value = (String) properties.get(name);
+		value = (String) properties.get(name);
 		if (StringUtils.isNotBlank(value)) {
 			return value.trim();
 		} else {
@@ -172,6 +180,7 @@ public class IbmIotPersistenceService implements PersistenceService, ManagedServ
 			logger.debug("Published item state '{}' for item '{}'", item.getState(), item.getName());
 		} catch (Exception e) {
 			logger.error("Error sending persistency message for item '{}' : {}", item.getName(), e);
+			e.printStackTrace();
 		}
 	}
 

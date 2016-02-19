@@ -1,0 +1,26 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: openHAB HPT  Binding
+Bundle-SymbolicName: org.openhab.binding.hpt
+Bundle-Version: 1.7.0.qualifier
+Bundle-Vendor: openHAB.org
+Bundle-RequiredExecutionEnvironment: J2SE-1.5
+Import-Package: javax.xml.bind,
+ org.apache.commons.io,
+ org.apache.commons.lang;version="2.6.0",
+ org.openhab.core.events,
+ org.openhab.core.items,
+ org.openhab.core.library.items,
+ org.openhab.core.library.types,
+ org.openhab.core.transform,
+ org.openhab.core.types,
+ org.openhab.model.item.binding,
+ org.osgi.framework,
+ org.osgi.service.cm,
+ org.osgi.service.event,
+ org.slf4j
+Service-Component: OSGI-INF/binding.xml, OSGI-INF/genericbindingprovider.xml
+Bundle-ClassPath: .
+Bundle-Activator: org.openhab.binding.hpt.internal.HptActivator
+Require-Bundle: org.openhab.core
+Export-Package: org.openhab.binding.hpt;uses:="org.openhab.core.binding"

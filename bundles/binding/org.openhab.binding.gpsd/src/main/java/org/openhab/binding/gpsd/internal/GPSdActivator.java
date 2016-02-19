@@ -34,7 +34,10 @@ public final class GPSdActivator implements BundleActivator {
 	 */
 	public void start(BundleContext bc) throws Exception {
 		context = bc;
-		logger.debug("GPSd binding has been started. Bc is", bc.toString());
+		logger.debug("GPSd binding has been started. v1.3");
+		// V1.1 - Improved location change detection by excluding heading 0 situations. 
+		// V1.2 - Changed maxThreshold to a variable available at the config file. 
+		// v.13 - Changed found allocation at binding.run() to reduce stress in garbage collection;
 	}
 
 	/**

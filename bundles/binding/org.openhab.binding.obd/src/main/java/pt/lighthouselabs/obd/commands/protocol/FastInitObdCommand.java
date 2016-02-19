@@ -18,7 +18,7 @@ package pt.lighthouselabs.obd.commands.protocol;
 public class FastInitObdCommand extends ObdProtocolCommand {
 
 	public FastInitObdCommand() {
-		super("ATWS");
+		super("AT WS");
 	}
 
 	/**

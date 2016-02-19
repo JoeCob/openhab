@@ -24,7 +24,7 @@ public class TimeoutObdCommand extends ObdProtocolCommand {
    *          desired timeout in milliseconds (ms).
    */
   public TimeoutObdCommand(int timeout) {
-    super("AT ST " + Integer.toHexString(0xFF & timeout));
+    super("AT ST " + Integer.toHexString(0xFF & (Integer.divideUnsigned(timeout, 4))));
   }
 
   /**

@@ -422,7 +422,8 @@ public class MqttBrokerConnection implements MqttCallback {
 					logger.warn(
 							"Broker connection not started. Cannot publish message to topic '{}'",
 							topic);
-					return;
+					throw new Exception();
+					//return;
 				}
 
 				// Create and configure a message
@@ -438,7 +439,7 @@ public class MqttBrokerConnection implements MqttCallback {
 						deliveryToken.getMessageId(), topic);
 				if (!async) {
 					// wait for publish confirmation
-					deliveryToken.waitForCompletion(10000);
+					deliveryToken.waitForCompletion(1000);
 					if (!deliveryToken.isComplete()) {
 						logger.error(
 								"Did not receive completion message within timeout limit whilst publishing to topic '{}'",

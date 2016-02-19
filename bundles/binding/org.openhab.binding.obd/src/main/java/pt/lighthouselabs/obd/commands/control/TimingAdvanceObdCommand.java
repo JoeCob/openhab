@@ -21,7 +21,7 @@ import pt.lighthouselabs.obd.enums.AvailableCommandNames;
 public class TimingAdvanceObdCommand extends PercentageObdCommand {
 
   public TimingAdvanceObdCommand() {
-    super("010E");
+    super("010E 01");
   }
 
   public TimingAdvanceObdCommand(TimingAdvanceObdCommand other) {
@@ -32,5 +32,16 @@ public class TimingAdvanceObdCommand extends PercentageObdCommand {
   public String getName() {
     return AvailableCommandNames.TIMING_ADVANCE.getValue();
   }
+
+@Override
+protected void performCalculations() {
+	// TODO Check Formula
+	  if ( isValid() ) {
+		  setPercentage((buffer.get(2) * 100.0f) / 255.0f); }
+	  else {
+		  setPercentage(-1);
+	  }
+	
+}
 
 }

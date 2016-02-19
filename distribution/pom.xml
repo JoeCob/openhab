@@ -462,7 +462,6 @@
 			<groupId>org.openhab.action</groupId>
 			<artifactId>org.openhab.action.xbmc</artifactId>
 			<version>${project.version}</version>
-			<type>jar</type>
 		</dependency>
 		<dependency>
 			<groupId>org.openhab.action</groupId>
@@ -1445,6 +1444,11 @@
 			<artifactId>org.openhab.persistence.mapdb</artifactId>
 			<version>${project.version}</version>
 			<type>jar</type>
+		</dependency>
+		<dependency>
+			<groupId>org.openhab.action</groupId>
+			<artifactId>org.openhab.action.openmap</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
 

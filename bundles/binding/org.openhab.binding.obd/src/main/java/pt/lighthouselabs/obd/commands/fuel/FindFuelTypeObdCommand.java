@@ -27,7 +27,8 @@ public class FindFuelTypeObdCommand extends ObdCommand {
    * Default ctor.
    */
   public FindFuelTypeObdCommand() {
-    super("0151");
+    super("0151 01");
+    this.setCheckFrequency(1800000);
   }
 
   /**
