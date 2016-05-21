@@ -1,5 +1,6 @@
 package org.openhab.persistence.ibmiot.internal;
 
+import java.util.NoSuchElementException;
 import java.util.TimerTask;
 
 import org.openhab.io.transport.mqtt.MqttSenderChannel;
@@ -17,6 +18,7 @@ public class IbmIotPersistenceTick extends TimerTask {
 	String topic;
 	IbmIotPersistencePublisher publisher;
 	String message;
+	
 	
 	
 	private static Logger logger = LoggerFactory.getLogger(IbmIotPersistenceService.class);
@@ -40,8 +42,14 @@ public class IbmIotPersistenceTick extends TimerTask {
 			// logger.debug("Sending {} messages. Packet Size is {}", numDocs,
 			// response.toString().length());
 			if (channel != null) {
-				if (offlineCache.query().iterator().hasNext()) {
-					dbobj = offlineCache.query().iterator().next();
+				if (offlineCache.hasCache) { //offlineCache.query().iterator().hasNext()
+					try { 
+						dbobj = offlineCache.query().iterator().next();
+					} catch (NoSuchElementException ex ) { 
+						offlineCache.hasCache = false;
+						logger.debug("Offline cache emptied");
+						return;
+					}
 					logger.info("Flushing offline cache");
 					try {
 						channel.publish(topic,

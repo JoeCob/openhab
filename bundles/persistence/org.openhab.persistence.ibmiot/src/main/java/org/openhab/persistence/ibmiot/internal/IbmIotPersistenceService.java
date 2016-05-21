@@ -89,12 +89,13 @@ public class IbmIotPersistenceService implements PersistenceService, ManagedServ
 		}
 		
 
-		logger.debug("Activating IBM IoT Persistence v 1.4");
+		logger.debug("Activating IBM IoT Persistence v 1.5");
 		// V1.1 - Moved variables to reduce memory stress on Garbage collector
 		// V1.2 - Fixed issut with not initializing offline cache properly. 
 		// V1.3 - Changed offline caching to use DBObject.
 		// V1.4 - Using timer to persist data. 
 		//        - Changed transport to throw exception in case of unstarted publisher. 
+		// V1.5 - Changed from constantly querying Mongo to a hasCache variable to detect if we should persist. 
 		try {
 			mqttService.activate();
 			// create a new message publisher and register it

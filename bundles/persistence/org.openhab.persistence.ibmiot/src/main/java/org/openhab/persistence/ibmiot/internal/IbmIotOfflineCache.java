@@ -35,6 +35,7 @@ public class IbmIotOfflineCache {
 	DBCursor cursor = null;
 	List<BasicDBObject> items;
 	String s;
+	public boolean hasCache = true;
 	
 	public void activate() {
 		logger.debug("IBMIoT Offline Cache Starting.");
@@ -91,6 +92,8 @@ public class IbmIotOfflineCache {
 			logger.trace ("Storing Object");
 			this.mongoCollection.save(obj);
 			logger.trace ("Done storing object into Mongo. Size was {}", item.length());
+			
+			this.hasCache = true;
 
 			logger.debug("IBM IoT Offline Cache save {}", item.toString());
 		} catch (Exception ex) { 
