@@ -50,9 +50,9 @@ public class GPSd4JavaConnector extends GPSdConnector {
 	int port = 2947;
 	String host = "localhost";
 	GPSdEndpoint ep = null; 
-	TPVObject locationData = null;
+	TPVObject locationData = new TPVObject();
 	boolean connected = false;
-	TPVObject currentLocation;
+	TPVObject currentLocation = new TPVObject();
 
 
 	/*public GPSd4JavaConnector(String hostname) {
@@ -141,36 +141,32 @@ public class GPSd4JavaConnector extends GPSdConnector {
 
 
 	public TPVObject receiveGPSObject() throws GPSdException { 
-		
+
 		int pollReturnCode = this.poll();
 		TPVObject newLocation = ep.GPSData;
-		
+
 		logger.trace("Poll returned: {}", pollReturnCode );
-		
-		if (ep.GPSData == null) {
+
+		if (newLocation == null) {
 			//ep.notifyAll();
 			logger.debug("GPS Object is invalid.");
 			//this.poll();
+			return currentLocation;
+		}
+
+		//logger.info("Current Location {}", currentLocation.toString());
+		//logger.info("New Location {}", newLocation.toString());
 			
+		
+		if ( !newLocation.isValid()) {
+			// NewLocation is invalid, like in a blindspot with nofix. CurrentLocation doesnt change. 
+			logger.warn("Invalid  location recieved from GPS. Nofix?");
+			return currentLocation;
 		}
 		
-		if (newLocation.isValid() || currentLocation == null) { 
-			logger.trace("Valid  location recieved from GPS.");
-			if ( newLocation.equals(currentLocation)) { 
-				logger.trace("Location did not change. Skipping for now");
-				return ep.GPSData;
-			} else {
-				logger.trace("Updating location to {}", newLocation.toString());
-			}
-			currentLocation = newLocation;
-		} else { 
-			logger.debug("Invalid  location recieved from GPS.");
-		}
-		
-		
+		currentLocation = newLocation;
 		
 		return currentLocation;
-		
 	}
 	
 	public int poll() throws GPSdException { 

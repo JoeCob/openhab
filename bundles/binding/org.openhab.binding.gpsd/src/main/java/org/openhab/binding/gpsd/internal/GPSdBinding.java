@@ -306,13 +306,14 @@ public class GPSdBinding extends
 						}
 						
 						//Detects course change above 20 degrees 
-						if (newLocation.isValid) {
+						if (newLocation != null && newLocation.isValid) {
 							if ((Math.abs(newLocation.getCourse() - previousLocation.getCourse()) >  getCourseChangeThres())  && ( newLocation.getCourse() > 0 ) && ( previousLocation.getCourse() > 0 ) ) {
 								logger.info ( "Location Changed above threshold. Previous Course was {}. New Course is {}", previousLocation.getCourse(), newLocation.getCourse());
 								break;
 								//changed = true;
 							}
 						} else { 
+							//logger.warn("Location is null or invalid. Probably NOFIX");
 							continue;
 						}
 						currentTimer = System.currentTimeMillis() ;
@@ -326,7 +327,8 @@ public class GPSdBinding extends
 				}
 				catch (Exception e1) {
 					// TODO Auto-generated catch block
-					logger.error("General Error at GPSd listener thread: {}", e1.toString());	
+					logger.error("General Error at GPSd listener thread: {}", e1.toString());
+					e1.printStackTrace();
 				}
 				try {
 					previousTimer = currentTimer;
@@ -334,7 +336,7 @@ public class GPSdBinding extends
 
 					//TPVObject newLocation = connector.receiveGPSObject();
 					
-					if (newLocation.isValid() || location == null) { 
+					if (newLocation != null && newLocation.isValid() || location == null) { 
 						logger.trace("Valid  location recieved from GPS.");
 						/*if ( newLocation.equals(location)) { 
 							logger.debug("Location did not change. Skipping for now");
