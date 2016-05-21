@@ -26,8 +26,8 @@ public class EngineRPMObdCommand extends ObdCommand {
    * Default ctor.
    */
   public EngineRPMObdCommand() {
-    super("010C 01");
-    this.setCheckFrequency(1000);
+    super("010C1");
+    this.setCheckFrequency(100);
   }
 
   /**

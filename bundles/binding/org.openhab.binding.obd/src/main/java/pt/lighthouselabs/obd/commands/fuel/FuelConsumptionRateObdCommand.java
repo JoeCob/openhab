@@ -23,7 +23,7 @@ public class FuelConsumptionRateObdCommand extends ObdCommand {
   private float fuelRate = -1.0f;
 
   public FuelConsumptionRateObdCommand() {
-    super("015E 01");
+    super("015E1");
     this.setCheckFrequency(1000);
   }
 

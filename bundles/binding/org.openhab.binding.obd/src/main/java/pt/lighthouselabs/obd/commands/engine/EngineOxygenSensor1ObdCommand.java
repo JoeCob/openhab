@@ -35,8 +35,8 @@ public class EngineOxygenSensor1ObdCommand extends PercentageObdCommand {
 	
   
   public EngineOxygenSensor1ObdCommand() {
-    super("0114 01");
-    this.setCheckFrequency(2000);
+    super("01141");
+    this.setCheckFrequency(100);
   }
   
   @Override
@@ -45,7 +45,7 @@ public class EngineOxygenSensor1ObdCommand extends PercentageObdCommand {
 	  //(A/200 - (B-128) * 100/128 
 	  b3 = buffer.get(2);
 	  b4 = buffer.get(3);
-	  logger.debug( "OxyGenSensor Debug: Bytes 3 and 4 are: {} and {} ", b3, b4 );
+	  logger.trace( "OxyGenSensor Debug: Bytes 3 and 4 are: {} and {} ", b3, b4 );
 	  if ( isValidPct() ) {
 		  setPercentage((b4-128) * (100f/128f)); 
 		  }
@@ -55,12 +55,12 @@ public class EngineOxygenSensor1ObdCommand extends PercentageObdCommand {
   }
   
   public float getVoltage() {
-	  	logger.debug("getVoltage returning {}", voltage);
+	  	logger.trace("getVoltage returning {}", voltage);
 		return voltage;
 	  }
 
 	public void setVoltage(float voltage) {
-		logger.debug("Voltage se to {}", voltage);
+		logger.trace("Voltage se to {}", voltage);
 		this.voltage = voltage;
 	}
 

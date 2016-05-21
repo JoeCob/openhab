@@ -28,12 +28,12 @@ public class OBDSimulator extends OBDConnector {
 	private int counter = 0;
 
 	public OBDSimulator() {
-		logger.debug("Simulator instantiated");
+		logger.trace("Simulator instantiated");
 	}
 
 	@Override
 	public void connect() throws OBDException {
-		logger.debug("GPSd simulator started");
+		logger.trace("GPSd simulator started");
 	}
 
 	@Override

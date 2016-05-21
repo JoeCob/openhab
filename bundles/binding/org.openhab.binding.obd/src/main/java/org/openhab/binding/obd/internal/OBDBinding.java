@@ -32,6 +32,7 @@ import org.openhab.core.binding.AbstractBinding;
 import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.PercentType;
 import org.openhab.core.library.types.StringType;
+import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.transform.TransformationException;
 import org.openhab.core.transform.TransformationHelper;
 import org.openhab.core.transform.TransformationService;
@@ -78,11 +79,11 @@ public class OBDBinding extends
 	}
 
 	public void activate() {
-		logger.debug("Activate OBD binding");
+		logger.trace("Activate OBD binding");
 	}
 
 	public void deactivate() {
-		logger.debug("Deactivate OBD binding");
+		logger.trace("Deactivate OBD binding");
 		messageListener.setInterrupted(true);
 	}
 	
@@ -97,9 +98,9 @@ public class OBDBinding extends
 	public synchronized void updated(Dictionary  config)
 			throws ConfigurationException {
 
-		logger.debug("OBD Updated");
+		logger.trace("OBD Updated");
 		if (config != null) {
-			logger.debug("OBD Configuration not null");
+			logger.trace("OBD Configuration not null");
 			if (config != null) {
 				String deviceString = (String) config.get("device");
 				if (StringUtils.isNotBlank(deviceString)) {
@@ -145,20 +146,20 @@ public class OBDBinding extends
 				if ("device".equals(key)) {
 					if (StringUtils.isNotBlank(value)) {
 						device = value;
-						logger.debug("Using serial device {}", device.toString());
+						logger.trace("Using serial device {}", device.toString());
 					}
 				} else if ("speed".equals(key)) {
 					speed = Integer.parseInt(value);
-					logger.debug("Speed  set to {}", speed);
+					logger.trace("Speed  set to {}", speed);
 				} else if ("refresh".equals(key)) {
 					refresh = Integer.parseInt(value);
-					logger.debug("Refresh  set to {}", refresh);
+					logger.trace("Refresh  set to {}", refresh);
 				} else if ("retry".equals(key)) {
 						retry = Integer.parseInt(value);
-						logger.debug("Retry set to {}", retry );
+						logger.trace("Retry set to {}", retry );
 				}  else if ("delay".equals(key)) {
 					delay = Integer.parseInt(value);
-					logger.debug("Delay set to {}", retry );
+					logger.trace("Delay set to {}", retry );
 				}
 				else {
 
@@ -175,13 +176,13 @@ public class OBDBinding extends
 			}
             
 			if (parsingRules != null) {
-				logger.debug("OBD Data Parser called");
+				logger.trace("OBD Data Parser called");
 				dataParser = new OBDDataParser(parsingRules);
 			}
 			
 			if (messageListener != null) {
 
-				logger.debug("Close previous message listener");
+				logger.trace("Close previous message listener");
 
 				messageListener.setInterrupted(true);
 				try {
@@ -223,12 +224,13 @@ public class OBDBinding extends
 		@Override
 		public void run() {
 
-			logger.debug("OBD data pooler  started");
+			logger.info("OBD data pooler  starting");
 			running = true;
 
 			OBDConnector connector;
 
 			while (!interrupted) { 
+				//logger.info("OBD Pooling Starting");
 				if (simulate == true)
 					connector = new OBDSimulator();
 				else 
@@ -277,40 +279,43 @@ public class OBDBinding extends
 							}
 													
 							
-							logger.debug("Timing - Pooling at {}. Previous took {}", currentTimer, currentTimer - previousTimer );
+							logger.debug ("OBD Timing - Previous {} ms", currentTimer - previousTimer );
 							previousTimer = currentTimer; //previousTimer marks when the previous read started. 
-							
 							poolReturnCode = connector.poll();
 							
+							
+							
 
-							logger.debug("OBD Pooling by binding returned {}", poolReturnCode);
+							logger.trace("OBD Pooling by binding returned {}", poolReturnCode);
 							switch (poolReturnCode) {
 							case -1: {
-								logger.debug("Poll returned false. Sleeping 60 seconds.");
+								logger.trace("Poll returned false. Sleeping 15 seconds.");
 								sleep (15000);
+								connector.fastInit();
 								if (retryCount++ < 4) { 
-									logger.debug("Poll returned false. Retrying." );
+									logger.trace("Poll returned false. Retrying." );
 								}else {
-									logger.debug("Poll returned false after 10 trys. Disconnecting." );
+									logger.trace("Poll returned false after 4 trys. Disconnecting." );
 									connector.disconnect();
 									sleep (30000);
 								}
-								continue;
+								break;
 							}
 							case -2: {
-								logger.debug("Poll returned Unable to Connect. Waiting 60 secs and retrying." );
+								logger.trace("Poll returned Unable to Connect. Waiting 60 secs and retrying." );
 								//Thread.sleep(30000);
 								//connector.disconnect();
 								Thread.sleep(60000);
-								continue;}
+								break;
+							}
 							case 1: { 
 								if ( reInitCount > 4 ) { 
-									logger.info("Too many NODATA. FastInit not efective. Trying fullInit at OBD due to too many NO DATA errors");
+									logger.warn("Too many NODATA. FastInit not efective. Trying fullInit at OBD due to too many NO DATA errors");
 									//Thread.sleep(30000);
 									connector.disconnect();
 									reInitCount = 0;
 								} else {
-									logger.debug("NO DATA. Trying adapter fast reInit in 30secs. Retry # {}.", reInitCount );
+									logger.trace("NO DATA. Trying adapter fast reInit in 30secs. Retry # {}.", reInitCount );
 									Thread.sleep(15000);
 									connector.fastInit() ;
 									reInitCount++;
@@ -321,19 +326,27 @@ public class OBDBinding extends
 								retryCount = 0;
 								break;
 							}
+							case 3: {
+								Thread.sleep(5000);
+								logger.trace("Ignition seems to be off");
+								break;
+								}
 							}
-								
+							
+							logger.trace("Receiving data object");
 							OBDObject data = connector.receiveOBDObject();
 
 							double beginItemMeasurement = 0;
+							double beginParsingMeasurement = System.currentTimeMillis();
 							
+							logger.debug("Timing - Parsing items");
 							for (OBDBindingProvider provider : providers) {
 								for (String itemName : provider.getItemNames()) {
 									org.openhab.core.types.State state = null;
 									boolean found = false;
 									beginItemMeasurement  = System.currentTimeMillis();
 									
-									logger.debug("Timing - Item being parsed is {}.", provider.getVariable(itemName).toLowerCase() );
+									logger.trace ("Timing - Item being parsed is {}.", provider.getVariable(itemName).toLowerCase() );
 
 									
 									try {
@@ -369,6 +382,10 @@ public class OBDBinding extends
 											break;
 										case "ambientairtemp":
 											state = new DecimalType(data.getAmbientAirTemp());
+											found = true;
+											break;
+										case "fuelstatus":
+											state = new DecimalType(data.getFuelStatus());
 											found = true;
 											break;
 										case "mpg":
@@ -411,20 +428,40 @@ public class OBDBinding extends
 											state = new DecimalType(data.getSpeed());
 											found = true;
 											break;		
-
+										case "gear":
+											state = new DecimalType(data.getCurrentGear());
+											found = true;
+											break;	
+										case "distancetraveled":
+											state = new DecimalType(data.getDistanceTravaledSinceCodesCleared());
+											found = true;
+											break;	
+										case "batteryvoltage":
+											state = new DecimalType (data.getBatteryVoltage());
+											found = true;
+											break;	
+										case "ignition":
+											if (data.getIgnition()) { 
+												state = OnOffType.ON;
+											} else { 
+												state = OnOffType.OFF;
+											}
+											found = true;
+											break;	
 										}
-										logger.debug("Timing  {} result  {} runtime {} miliseconds", provider.getVariable(itemName).toLowerCase(), state.toString(), System.currentTimeMillis() - beginItemMeasurement );
+	
+
+										logger.trace ("Timing  {} result  {} runtime {} miliseconds", provider.getVariable(itemName).toLowerCase(), state.toString(), System.currentTimeMillis() - beginItemMeasurement );
 									} catch (Exception e) {
 										// TODO Auto-generated catch block
 										logger.error("Error setting OBD value for {} : {}", itemName.toLowerCase() , e.toString());
-										continue;
+										throw e;
 									}											
 
 
 
 									if (found) {
-										if ( state == null ) 
-										{ state = new DecimalType("-1"); }
+										if ( state == null ) { state = new DecimalType("-1"); }
 										state = transformData(
 												provider.getTransformationType(itemName),
 												provider.getTransformationFunction(itemName),
@@ -440,6 +477,7 @@ public class OBDBinding extends
 								}
 
 							}
+							logger.debug("Timing - Parsing took {} ms.", System.currentTimeMillis() - beginParsingMeasurement );
 						}
 
 						catch (Exception e) {
@@ -447,6 +485,7 @@ public class OBDBinding extends
 							logger.error(
 									"Error occured when received data from OBD device",
 									e);
+							continue;
 
 						}
 						
@@ -510,7 +549,7 @@ public class OBDBinding extends
 								+ "]", te);
 			}
 
-			logger.debug("transformed response is '{}'", transformedResponse);
+			logger.trace("transformed response is '{}'", transformedResponse);
 
 			if (transformedResponse != null) {
 				return new DecimalType(transformedResponse);

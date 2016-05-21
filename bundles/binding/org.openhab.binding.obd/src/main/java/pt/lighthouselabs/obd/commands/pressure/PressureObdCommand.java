@@ -56,7 +56,12 @@ public abstract class PressureObdCommand extends ObdCommand implements
 
   protected void performCalculations() {
     // ignore first two bytes [hh hh] of the response
-    pressure = preparePressureValue();
+	try { 
+		  pressure = preparePressureValue();
+	} catch ( Exception ex) { 
+		pressure = 0;
+		logger.error("Error setting value for {} - ", this.getName(), ex.toString());
+	}
   }
 
   @Override

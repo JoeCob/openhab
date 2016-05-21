@@ -24,8 +24,8 @@ public class ThrottlePositionObdCommand extends PercentageObdCommand {
    * Default ctor.
    */
   public ThrottlePositionObdCommand() {
-    super("0111 01");
-    this.setCheckFrequency(1000);
+    super("01111");
+    this.setCheckFrequency(100);
   }
 
   /**

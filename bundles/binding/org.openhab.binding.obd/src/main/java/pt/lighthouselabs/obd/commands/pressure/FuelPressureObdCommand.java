@@ -17,8 +17,8 @@ import pt.lighthouselabs.obd.enums.AvailableCommandNames;
 public class FuelPressureObdCommand extends PressureObdCommand {
 
   public FuelPressureObdCommand() {
-    super("010A 01");
-    this.setCheckFrequency(1000);
+    super("010A1");
+    this.setCheckFrequency(100);
   }
 
   public FuelPressureObdCommand(FuelPressureObdCommand other) {

@@ -20,7 +20,7 @@ public class TimerResetState extends TimerTask {
 	
 	public TimerResetState ( ObdCommand cmd ) {
 		try {
-			logger.debug("Reseting valid state for command " + cmd.getName() );
+			logger.trace("Reseting valid state for command " + cmd.getName() );
 			cmd.valid  = true;
 		} catch (Exception e) {
 			// TODO Auto-generated catch block

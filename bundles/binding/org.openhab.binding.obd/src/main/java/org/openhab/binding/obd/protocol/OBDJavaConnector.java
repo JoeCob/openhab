@@ -83,7 +83,7 @@ public class OBDJavaConnector extends OBDConnector  {
 
 	public OBDJavaConnector() {
 		// TODO Auto-generated constructor stub
-		logger.debug("Starting OBDJavaConnector");
+		logger.trace("Starting OBDJavaConnector");
 	}
 
 	public OBDJavaConnector(String device, int speed) {
@@ -120,7 +120,7 @@ public class OBDJavaConnector extends OBDConnector  {
 			                                          SerialPort.PARITY_NONE );
 			          in = serialPort.getInputStream();
 			          out = serialPort.getOutputStream(); */
-					logger.debug("Serial Port Found");
+					logger.trace("Serial Port Found");
 					if (portIdentifier != null) {
 						// initialize serial port
 						try {
@@ -128,7 +128,7 @@ public class OBDJavaConnector extends OBDConnector  {
 							serialPort.sendBreak(timeout);
 							
 						} catch (PortInUseException e) {
-							logger.debug("Port in use {}: {} ", device, e.toString() );
+							logger.trace("Port in use {}: {} ", device, e.toString() );
 							throw new IOException(e);
 						}
 
@@ -138,7 +138,7 @@ public class OBDJavaConnector extends OBDConnector  {
 									SerialPort.PARITY_NONE);
 							//serialPort.addEventListener();
 						} catch (Exception e) {
-							logger.debug("Failed to set parameters:  {}: {} ", serialPort.toString(), e.toString() );
+							logger.trace("Failed to set parameters:  {}: {} ", serialPort.toString(), e.toString() );
 							throw new IOException(e);
 						}
 						
@@ -157,7 +157,7 @@ public class OBDJavaConnector extends OBDConnector  {
 						try {
 							in = serialPort.getInputStream();
 						} catch (IOException e) {
-							logger.debug("Input string failed:  {}: {} ", in.toString(), e.toString() );
+							logger.trace("Input string failed:  {}: {} ", in.toString(), e.toString() );
 							throw new IOException(e);
 						}
 
@@ -167,35 +167,35 @@ public class OBDJavaConnector extends OBDConnector  {
 							out = serialPort.getOutputStream();
 							out.flush();
 						} catch (IOException e) {
-							logger.debug("Output string failed:  {}: {} ", in.toString(), e.toString() );
+							logger.trace("Output string failed:  {}: {} ", in.toString(), e.toString() );
 							throw new IOException(e);
 						}
 						
 						if (!serialPort.isCD()) {
-							logger.debug("Carrier not detected.");
+							logger.trace("Carrier not detected.");
 							//throw new IOException(new Exception("Failed to detect carrier"));
 						}
 					}
 				
 					
-					
+			    if (this.fullInit()) { 
 
-				logger.debug("Initializing Data Object" );
+			    	logger.trace("Initializing Data Object" );
 
-				ecuData.init ( serialPort , commDelay);
+			    	ecuData.init ( serialPort , commDelay);
 
-				logger.debug("OBD Serial Connected " );
+			    	logger.trace("OBD Serial Connected " );
 
-				connected = true;
-				
+			    	connected = true;
+			    	}
 				}
 			}
 		}  catch  ( IOException i) {
-			logger.debug("IO connecting serial port {}: {} ", device, i.toString() );
+			logger.trace("IO connecting serial port {}: {} ", device, i.toString() );
 			serialPort.close();
 			//throw new OBDException ("IO connecting serial port ");
 		}  catch (Exception e) {
-			logger.debug("Exception connecting serial port {}: {} ", device, e.toString() );
+			logger.trace("Exception connecting serial port {}: {} ", device, e.toString() );
 			serialPort.close();
 			//throw new OBDException ("IO connecting serial port ");
 		}
@@ -205,6 +205,7 @@ public class OBDJavaConnector extends OBDConnector  {
 	public void disconnect() throws OBDException {
 		connected = false;
 		serialPort.close();
+		
 
 	}
 
@@ -213,7 +214,7 @@ public class OBDJavaConnector extends OBDConnector  {
 		
 		if (ecuData == null) {
 			//ep.notifyAll();
-			logger.debug("OBD Object is null");
+			logger.trace("OBD Object is null");
 			
 		}
 		
@@ -298,28 +299,27 @@ public class OBDJavaConnector extends OBDConnector  {
 	public boolean fullInit () {
 		
 		try {
-			logger.debug("Re-Initializing OBD Adapter");
+			logger.trace("Re-Initializing OBD Adapter");
 			
 			new InitObdCommand().run(in, out);
 			
+			logger.trace("Setting Echo Off");
+			new EchoOffObdCommand().run(in, out);
 			
-			logger.debug("Setting OBD Timeout");
+			logger.trace("Setting LineFeed Off " );
+			new LineFeedOffObdCommand().run(in, out);
+			
+			logger.trace("Setting OBD Timeout");
 			
 			new TimeoutObdCommand(100).run(in, out);
 			
 
-			logger.debug("Setting Echo Off");
-			new EchoOffObdCommand().run(in, out);
-
-			logger.debug("Setting LineFeed Off " );
-			new LineFeedOffObdCommand().run(in, out);
-
-			logger.debug(" Setting Protocol " );
+			logger.trace(" Setting Protocol " );
 
 			SelectProtocolObdCommand command = new SelectProtocolObdCommand(ObdProtocols.AUTO);
 			command.run(in, out);
 			
-			logger.debug("Protocol set to {}", command.getFormattedResult() );
+			logger.trace("Protocol set to {}", command.getFormattedResult() );
 			
 			return true;
 		} catch (Exception e) {
@@ -333,9 +333,15 @@ public class OBDJavaConnector extends OBDConnector  {
 	
 	public boolean fastInit()  {
 		try {
-			logger.debug("Fatst Re-Initializing OBD Adapter");
+			logger.trace("Fatst Re-Initializing OBD Adapter");
 			
 			new FastInitObdCommand().run(in, out);
+			
+			logger.trace("Setting Echo Off");
+			new EchoOffObdCommand().run(in, out);
+			
+			logger.trace("Setting LineFeed Off " );
+			new LineFeedOffObdCommand().run(in, out);
 			
 			
 			return true;

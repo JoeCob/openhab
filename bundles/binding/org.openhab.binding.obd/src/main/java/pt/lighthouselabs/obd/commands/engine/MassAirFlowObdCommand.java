@@ -26,8 +26,8 @@ public class MassAirFlowObdCommand extends ObdCommand {
    * Default ctor.
    */
   public MassAirFlowObdCommand() {
-    super("0110 01");
-    this.setCheckFrequency(1000);
+    super("01101");
+    this.setCheckFrequency(100);
   }
 
   /**

@@ -12,8 +12,10 @@
  */
 package pt.lighthouselabs.obd.commands;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Timer;
@@ -66,7 +68,7 @@ public abstract class ObdCommand {
   //private final ScheduledExecutorService scheduler =
 	     //  Executors.newScheduledThreadPool(1);
   
-  private static final Logger logger = LoggerFactory.getLogger(OBDBinding.class);
+  protected static final Logger logger = LoggerFactory.getLogger(OBDBinding.class);
 
   /**
    * Error classes to be tested in order
@@ -94,7 +96,7 @@ public abstract class ObdCommand {
         
    /* try {
 		timer.scheduleAtFixedRate(taskResetState, 60000, 60000);
-		logger.debug("Scheduling State Reset for every  " + 60000 + " milliseconds") ;
+		logger.trace("Scheduling State Reset for every  " + 60000 + " milliseconds") ;
 	} catch (Exception e) {
 		// TODO Auto-generated catch block
 		logger.error("Error initializing OBD Command {}", this.getName());
@@ -135,15 +137,15 @@ public abstract class ObdCommand {
   public synchronized void run(InputStream in, OutputStream out) throws IOException,
       InterruptedException {
 
-	logger.debug ("Start reading data for {}", this.getName());
+	logger.trace ("Start reading data for {}", this.getName());
 	now = System.currentTimeMillis();
 	
 	
   	/*if (reInitCount > 50 ) {
-    	//logger.debug("Performing a fastReinit at the OBD adapter due to too many NO DATA errors" ) ;
+    	//logger.trace("Performing a fastReinit at the OBD adapter due to too many NO DATA errors" ) ;
     	//this.sendFastReinit(in, out);
     	reInitCount = 0;
-    	logger.debug("Performing a fastReinit at the OBD adapter due to too many NO DATA errors on mandatory commands" ) ;
+    	logger.trace("Performing a fastReinit at the OBD adapter due to too many NO DATA errors on mandatory commands" ) ;
     	throw 
     	
   	}*/
@@ -153,23 +155,23 @@ public abstract class ObdCommand {
 	// enable all previously disabled commands in the past. 
 	
 	if ((now - lastCheck) < checkFrequency ) { 
-		logger.debug("Not executing command {}. checkFrequency is {}, last checked at {}", this.getName() , checkFrequency, lastCheck); 
+		logger.trace("Not executing command {}. checkFrequency is {}, last checked at {}", this.getName() , checkFrequency, lastCheck); 
 		return;
 	} 
   	
 	if ( !valid && (now -  lastReset > (10 * checkFrequency))  && !this.permanentDisabled   ) { // We do this to recheck commands that could be visable due ti a change like Ignition on. Could be replaced
 		valid = true;
 		lastReset = now;
-		logger.debug("Reseting valid state for command " + this.getName() );
+		logger.trace("Reseting valid state for command " + this.getName() );
 	}
 	
 	
     if (valid || !this.validityCheck() ) { 
-    	if (!this.validityCheck() ) { logger.debug("Executing command since validity check is off");}
+    	if (!this.validityCheck() ) { logger.trace("Executing command since validity check is off");}
     	sendCommand(out);
     	readResult(in); 
     } else { 
-    		logger.debug("Not executing command {} since state is {}. Validity check is {}.", this.getName() , valid, this.validityCheck());    		
+    		logger.trace("Not executing command {} since state is {}. Validity check is {}.", this.getName() , valid, this.validityCheck());    		
     }
     lastCheck = now;
   }
@@ -188,12 +190,12 @@ public abstract class ObdCommand {
 	 
 	// need to change to suport both multiline and single line. 
 	// next line defaults to single line only. can lead to problems on multiline commands. 
-	outCmd = cmd + " \r";
+	outCmd = cmd + "\r";
     // add the carriage return char
 
 	//String outCmd = cmd ;
     // write to OutputStream (i.e.: a BluetoothSocket)
-    logger.trace("Writing {}", outCmd.getBytes()  );
+    logger.trace("Writing {} = {}", outCmd.getBytes(), outCmd  );
     out.write(outCmd.getBytes());
     logger.trace("Flushing" );
     out.flush();
@@ -204,7 +206,8 @@ public abstract class ObdCommand {
      * Due to the time that some systems may take to respond, let's give it
      * 200ms.
      */
-    Thread.sleep(commDelay);
+   // logger.trace("Sleeping {} ms", commDelay );
+   // Thread.sleep(5);
   }
 
   /**
@@ -226,8 +229,9 @@ public abstract class ObdCommand {
     try {
 		readRawData(in);
 	} catch (Exception e) {
-		logger.debug("Exception when reading data from serial.");
-		//e.printStackTrace();
+		logger.trace("Exception when reading data from serial.");
+		logger.trace("Exception was {}.", e.toString());
+		e.printStackTrace();
 	}
     checkForErrors();
     fillBuffer();
@@ -260,39 +264,138 @@ public abstract class ObdCommand {
       end += 2;
     }
     
-    logger.debug("OBD Buffer is {}", buffer.toString() );
+    logger.trace("OBD Buffer is {}", buffer.toString() );
   }
   
   public boolean isValid () {
 	  
-	  //logger.debug("{} is {}", this.getName(), valid );
+	  //logger.trace("{} is {}", this.getName(), valid );
 	  return valid;
 	  
   }
   
   public void isValid (boolean isValid) {
 	  
-	  //logger.debug("{} is {}", this.getName(), valid );
+	  //logger.trace("{} is {}", this.getName(), valid );
 	  this.valid =  isValid;
 	  
   }
 
   protected void readRawData(InputStream in) throws IOException, UnableToConnectException, NoDataException, Exception {
-    b = 0;
-    res = new StringBuilder();
+    byte b = 0;
+    StringBuilder res = new StringBuilder();
+    //BufferedReader br = null;
 
-    logger.debug("Reading results");
+    logger.trace("Reading results");
+    
+    
+    
     // read until '>' arrives
-    while ((char) (b = (byte) in.read()) != '>') {
-    	logger.trace("<< {} ", b);
-        res.append((char) b);
-        
-        if (res.toString().length() > 128) //Watch dog for invalid communication
+    
+    
+    /* 
+     * 
+     * Alternative Codes. 
+     *
+    
+    String line = "";
+    
+    BufferedReader br = new BufferedReader(new InputStreamReader(in));
+    
+    byte[] buffer = new byte[1024];
+    int len = -1;
+    int loopCount = 0;
+    try
+        {
+            while ( ( len = in.read(buffer)) > -1 )
+            {
+            	line = new String(buffer,0,len);
+            	logger.trace("Readline returned {} in loop {}", line, loopCount++ );
+            	if (line.trim().contains(">")) { 
+            		logger.trace("Breaking at command end");
+            		break;
+            	}
+            	res.append(line);
+            }
+        }
+        catch ( IOException e )
+        {
+            e.printStackTrace();
+        }          
+
+    
+    /*
+     * 
+     * 
+     * Alternative Codes. 
+     * 
+     * 
+     
+    //line = br.readLine();
+    //String line2 = br.readLine();
+    
+    String line = "";
+    BufferedReader br = new BufferedReader(new InputStreamReader(in));
+    int loopCount = 0;
+	while (br.ready()) { 
+		logger.trace("BufferefReader is ready");
+		while (( line = br.readLine()) != null) {
+		logger.trace("Readline returned {} in loop {}", line, loopCount );
+	    if (br.toString().length() > 128 ||loopCount++ > 100 ) //Watch dog for invalid communication
+        {
+        	logger.info("Watchdog breaking at serial reading");
+        	break;
+        }
+		res.append(line);
+		}
+	}
+    
+    /*int availableBytes = 0;
+    int loopCount = 0;
+    while ( availableBytes < 1 ) { 
+    	availableBytes = in.available();
+    	logger.trace ("Checking for serial response. Loop {}, bytes {}", loopCount, availableBytes);
+    	if (loopCount++ > 100 ) //Watch dog for invalid communication
         {
         	logger.info("Watchdog breaking at serial reading");
         	break;
         }
     }
+    if (availableBytes > 0) { 
+    	byte[] readBuffer = new byte[400];
+    	in.read(readBuffer,0,availableBytes);
+    	line = new String ( readBuffer, 0,availableBytes );
+    }*/
+    	
+    //res.append((char) b);
+
+    /* 
+     * 
+     * Working Code
+     *
+     */
+	char c;
+   	// while ((char) (b = (byte) in.read()) != '>') {
+    while (((b = (byte) in.read()) > -1)) {
+    	logger.trace("<< {} {} ", b, (char) b);
+    	c = (char) b;
+ 
+        if (res.toString().length() > 128 ) //Watch dog for invalid communication
+        {
+        	logger.info("Watchdog breaking at serial reading");
+        	break;
+        }
+        
+        if (  c == '>' ) //Watch dog for invalid communication
+        {
+        	logger.trace("Breaking at line or command end");
+        	break;
+        }
+        
+        res.append(c);
+        
+        
+    } /*
     /*
      * Imagine the following response 41 0c 00 0d.
      * 
@@ -301,17 +404,27 @@ public abstract class ObdCommand {
      * is actually TWO bytes (two chars) in the socket. So, we must do some more
      * processing..
      */
+    
+	//logger.trace("<< {} ", line);
+	
     rawData = res.toString().trim();
-
-
+    
+    //rawData = line;
+    logger.trace("ReadRaw : {} ", rawData);
+    
     /*
      * Data may have echo or informative text like "INIT BUS..." or similar.
      * The response ends with two carriage return characters. So we need to take
      * everything from the last carriage return before those two (trimmed above).
      */
+    if (rawData != null && rawData.contains(">")) { 
+    	rawData = rawData.substring(rawData.lastIndexOf(">"));
+    }
+    //rawData = rawData.replaceAll("\\s", "");//removes all [ \t\n\x0B\f\r]
+    
     rawData = rawData.substring(rawData.lastIndexOf(13) + 1);
     
-    logger.debug("ReadRaw is {}", rawData );
+    logger.trace("ReadRaw is {}", rawData );
     
     
   }
@@ -320,7 +433,7 @@ public abstract class ObdCommand {
 	  
 	  if (rawData.startsWith("7F 01", 0)  || rawData.startsWith("?", 0) || rawData.startsWith("127 01", 0) )
 	  { 
-		  logger.debug("Permanently disabling: {} reason {}. ", this.getName(), rawData.toString());
+		  logger.trace("Permanently disabling: {} reason {}. ", this.getName(), rawData.toString());
 	    	
 		  this.permanentDisabled = true;
 		  this.valid = false;
@@ -330,16 +443,16 @@ public abstract class ObdCommand {
 	  if ( (rawData.startsWith("NO DATA", 0) && this.validityCheck()))
 	    {
 	    	valid = false;
-	    	logger.debug("Command: {} - OBD readraw :{}, isValid: {}. This is not mandatory command. ", this.getName(), rawData.toString(), valid);
+	    	logger.trace("Command: {} - OBD readraw :{}, isValid: {}. This is not mandatory command. ", this.getName(), rawData.toString(), valid);
 	    	return;
 	    } else if ( rawData.startsWith("UNABLE TO CONNECT", 0) || rawData.startsWith("SEARCHING", 0)) {
 	    	valid = false;
-	    	logger.debug("Command: {} - OBD readraw :{}, isValid: {}", this.getName(), rawData.toString(), valid);
-	    	logger.debug("ECU seems to be off");
+	    	logger.trace("Command: {} - OBD readraw :{}, isValid: {}", this.getName(), rawData.toString(), valid);
+	    	logger.trace("ECU seems to be off");
 	    	throw new UnableToConnectException();
 	    	//Thread.sleep (60*1000); // Need to improve this. Maybe have a general setting at the connection level with the ignition state????
 	    } else if  (rawData.startsWith("NO DATA", 0) && !this.validityCheck()) {
-	    	logger.debug("Command: {} - OBD readraw :{}, isValid: {}. This was a mandatory command.", this.getName(), rawData.toString(), valid, this.validityCheck());
+	    	logger.trace("Command: {} - OBD readraw :{}, isValid: {}. This was a mandatory command.", this.getName(), rawData.toString(), valid, this.validityCheck());
 	    	valid = false;
 	    	/*Thread.sleep(30000);
 	    	if (reInitCount++ > 25 ) {
@@ -350,10 +463,10 @@ public abstract class ObdCommand {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-	    		logger.debug("Throwing no data exception"); 
+	    		logger.trace("Throwing no data exception"); 
 	    		throw new NoDataException();
 	    	} else  { 
-	    		logger.debug("No Data on Mandatory Object. This happaned {} times in sequence. ", reInitCount ) ;
+	    		logger.trace("No Data on Mandatory Object. This happaned {} times in sequence. ", reInitCount ) ;
 	    		return;
 	    	}*/
 	    } 
@@ -429,11 +542,11 @@ public abstract class ObdCommand {
   protected void sendFastReinit (InputStream in, OutputStream out) throws IOException,
   InterruptedException {
  
-	  logger.debug ("Re-Inititlizing connection. Fast reinit. ");
+	  logger.trace ("Re-Inititlizing connection. Fast reinit. ");
 	  new FastInitObdCommand().run(in, out);
 
 	  Thread.sleep(30000);
-	  logger.debug ("Fast reinit done.");
+	  logger.trace ("Fast reinit done.");
   }
 
 public double getCheckFrequency() {
@@ -442,6 +555,10 @@ public double getCheckFrequency() {
 
 public void setCheckFrequency(double checkFrequency) {
 	this.checkFrequency = checkFrequency;
+}
+
+public void reset() { 
+	this.rawData="0";
 }
   
 

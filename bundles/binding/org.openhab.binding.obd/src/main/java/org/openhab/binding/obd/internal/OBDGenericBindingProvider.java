@@ -64,8 +64,8 @@ public class OBDGenericBindingProvider extends
 	public void validateItemType(Item item, String bindingConfig)
 			throws BindingConfigParseException {
 		/*
-		//logger.debug("validateItemType {}", item.toString());
-		//logger.debug("validateItemType config {}", bindingConfig.toString() );
+		//logger.trace("validateItemType {}", item.toString());
+		//logger.trace("validateItemType config {}", bindingConfig.toString() );
 		if (!(item instanceof NumberItem)) {
 			throw new BindingConfigParseException(
 					"item '"
@@ -88,8 +88,8 @@ public class OBDGenericBindingProvider extends
 
 		String[] configParts = bindingConfig.trim().split(":");
    
-		//logger.debug("processBindingConfiguration {}", item.toString());
-		//logger.debug("processBindingConfiguration config {}", bindingConfig.toString() );
+		//logger.trace("processBindingConfiguration {}", item.toString());
+		//logger.trace("processBindingConfiguration config {}", bindingConfig.toString() );
 		
 		if (configParts.length > 1) {
 			throw new BindingConfigParseException(
@@ -155,7 +155,7 @@ public class OBDGenericBindingProvider extends
 
 	@Override
 	public String getVariable(String itemName) {
-		//logger.debug("getVariable config {}", itemName.toString() );
+		//logger.trace("getVariable config {}", itemName.toString() );
 		ObdBindingConfig config = (ObdBindingConfig) bindingConfigs
 				.get(itemName);
 		return config != null ? config.variable : null;
@@ -163,7 +163,7 @@ public class OBDGenericBindingProvider extends
 
 	@Override
 	public String getTransformationType(String itemName) {
-		//logger.debug("getTransformationType {}", itemName.toString() );
+		//logger.trace("getTransformationType {}", itemName.toString() );
 		ObdBindingConfig config = (ObdBindingConfig) bindingConfigs
 				.get(itemName);
 		return config != null ? config.transformationType : null;

@@ -23,8 +23,8 @@ public class IntakeManifoldPressureObdCommand extends PressureObdCommand {
    * Default ctor.
    */
   public IntakeManifoldPressureObdCommand() {
-    super("010B 01");
-    this.setCheckFrequency(1000);
+    super("010B1");
+    this.setCheckFrequency(100);
   }
 
   /**

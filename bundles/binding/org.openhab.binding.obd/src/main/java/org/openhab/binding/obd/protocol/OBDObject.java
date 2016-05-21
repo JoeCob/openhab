@@ -1,6 +1,8 @@
 package org.openhab.binding.obd.protocol;
 
 import java.io.IOException;
+//import java.util.ArrayList;
+//import java.util.List;
 
 import org.openhab.binding.obd.internal.OBDBinding;
 import org.slf4j.Logger;
@@ -12,6 +14,7 @@ import pt.lighthouselabs.obd.commands.temperature.*;
 import pt.lighthouselabs.obd.commands.engine.*;
 import pt.lighthouselabs.obd.commands.*;
 import pt.lighthouselabs.obd.commands.fuel.*;
+import pt.lighthouselabs.obd.commands.control.*;
 import pt.lighthouselabs.obd.exceptions.NoDataException;
 import pt.lighthouselabs.obd.exceptions.UnableToConnectException;
 import pt.lighthouselabs.obd.enums.FuelTrim;
@@ -54,6 +57,14 @@ float defaultAIT = 300;
 float INVALID = -999;
 //
 
+
+//List<Integer> gearList = new ArrayList<Integer>(7);
+int[] gearList;
+
+boolean checkIgnitionObd = false;
+
+
+
 // COMM Settings
 private int commDelay = 50;
 
@@ -64,6 +75,11 @@ private float AirIntakeTemp;
 AirIntakeTemperatureObdCommand airIntakeTemperatureCommand = new AirIntakeTemperatureObdCommand();
 private float LTFT_1;
 FuelTrimObdCommand fuelTrimObdCommand = new FuelTrimObdCommand(FuelTrim.LONG_TERM_BANK_1);
+
+private float STFT_1;
+FuelTrimObdCommand fuelTrimSTObdCommand = new FuelTrimObdCommand(FuelTrim.SHORT_TERM_BANK_1);
+
+
 private float AmbientAirTemp;
 AmbientAirTemperatureObdCommand ambientAirTemperatureCommand = new AmbientAirTemperatureObdCommand();
 private float EngineCoolantTemp;
@@ -73,6 +89,10 @@ private int BarometricPressure;
 private int FuelPressure;
 private int IntakeManifoldPressure;
 IntakeManifoldPressureObdCommand intakeManifoldPressureCommand = new IntakeManifoldPressureObdCommand();
+
+
+private boolean ignitionStatus = false;
+IgnitionObdCommand  ignitionObdCommand = new IgnitionObdCommand();
 
 
 private float EngineLoad;
@@ -95,8 +115,21 @@ FindFuelTypeObdCommand findFuelTypeCommand = new FindFuelTypeObdCommand();
 private float fuelConsumption;
 FuelConsumptionRateObdCommand fuelConsumptionCommand = new FuelConsumptionRateObdCommand();
 EngineOxygenSensor1ObdCommand oxygen1Command = new EngineOxygenSensor1ObdCommand();
+
 private float fuelEconomy;
 FuelEconomyObdCommand fuelEconomyCommand = new FuelEconomyObdCommand();
+
+private int distanceTraveledSinceCodesCleared;
+DistanceTraveledSinceCodesClearedObdCommand distanceTraveledSinceCodesClearedCommand  = new DistanceTraveledSinceCodesClearedObdCommand();
+
+private double batteryVoltage;
+BatteryVoltageObdCommand batteryVoltageCommand  = new BatteryVoltageObdCommand();
+
+
+private int fuelStatus;
+FuelStatusObdCommand fuelStatusCommand = new FuelStatusObdCommand();
+
+
 private float fuelEconomywithMaf;
 private float fuelEconomyNoMaf;
 private float timingAdvance;
@@ -108,144 +141,240 @@ private float oxygen1Pct;
 private float oxygen1Voltage;
 
 private float imap;
-private float mafTmp;
+//private float mafTmp;
 private long refreshStart;
 private boolean noData = false;
+
+
 
 private static final Logger logger = LoggerFactory.getLogger(OBDBinding.class);
 
 
 public synchronized int refresh() throws IOException {
 	// TODO Auto-generated method stub
-	
+
 	//Pools all known metrics from OBD. 
 	//Each object treats its own refreshrate/timeout. Thats defined on each object for each command.
 	//Invalid objects (detected by unknown or ? responses) are set as invalid at the object level and pool at the ELM327 interface wont be done. 
 	// TODO: Make sure a error in one of the commands wont prevent others from running. 
 	//	-- Ideas are suround each with a try/catch block or even better, 
 	//  -- do a loop iterating over all OBD command objects defined and treat exceptions individually at each iteration. 
-	
+
 	try {
 		refreshStart = System.currentTimeMillis();
 		commandStart = refreshStart;
 		noData = false;
-		logger.debug("OBD Data Refresh Requested at {} ", refreshStart );
-		
-		logger.debug("Calling setEngineRpm at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setEngineRpm();
-		logger.trace("Done calling setEngineRpm at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart );
 
 
-		logger.debug("Calling setSleed at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setSpeed();
-		logger.trace("Done calling setSpeed at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart );
+		logger.debug("OBD Refresh Start" );
 
 
-		logger.debug("Calling setEngineLoad at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setEngineLoad();
-		
-		logger.debug("Calling setEngineCoolantTempat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setEngineCoolantTemp();
-		
-		
-		logger.debug("Calling setIntakeManifoldPressureat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart );
-		this.setIntakeManifoldPressure();
-		
-		logger.debug("Calling setMaf at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setMassAirflow();
-		
-		
-		logger.debug("Calling setLTFT at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setLTFT_1();
-		
-		
-		logger.debug("Calling setAirIntakeTemp at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart );
-		this.setAirIntakeTemp();
-		
-		
-		logger.debug("Calling setAmbientAirTemp at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setAmbientAirTemp();
+		// Add commands that dont depend on IGNITION before. 
+		// This will allow them to be updated even if ignition is off and we get UnabletoConnect or NoData errors. 
+		// This will in the future need to be broken down into seperate classes that handle this type 
+		// of commands independently. 
+
+		logger.trace("Calling setBatteryLevel at {}", System.currentTimeMillis() );
+		this.setBatteryVoltage();
+		logger.debug("Timing - setBattery {} ms ", System.currentTimeMillis() - commandStart );
+
+		logger.trace("Calling setIgnitionStatus at {}", System.currentTimeMillis() );
+		this.setIgnitionStatus();
+		logger.debug("Timing - setIgnitionStatus {} ms ", System.currentTimeMillis() - commandStart );
+
+		// End of ignition dependent commands. 
+		// Ignition dependent commands. 
+
+		if (this.ignitionStatus == true ) {
+			logger.debug("OBD Ignition Dependent Start" );
+
+			logger.trace("Calling setEngineRpm at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setEngineRpm();
+			logger.debug("Timing - setEngineRpm {} ms ", System.currentTimeMillis() - commandStart );
 
 
-		
-		logger.debug("Calling setBarometricPressureat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setBarometricPressure();
-		
-		logger.debug("Calling setFuelPressureat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setFuelPressure();
-		
+
+			logger.trace("Calling setSpeed at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setSpeed();
+			logger.debug("Timing - setSpeed {} ms ", System.currentTimeMillis() - commandStart );
 
 
-		
-		logger.debug("Calling setEngineRunTimeat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setEngineRuntime();
-		
+			logger.trace("Calling setEngineLoad at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setEngineLoad();
+			logger.debug("Timing - setEngineLoad {} ms ", System.currentTimeMillis() - commandStart );
+
+			logger.trace("Calling setEngineCoolantTempat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setEngineCoolantTemp();
+			logger.debug("Timing - setEngineCoolantTempat {} ms ", System.currentTimeMillis() - commandStart );
 
 
-		
-		
-		logger.debug("Calling setThrottleat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setThrottle();
-		logger.debug("Calling setFuelLevelat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setFuelLevel();
-		logger.debug("Calling setFuelTypeat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setFuelType();
-		logger.debug("Calling setFuelConsumptionat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setFuelConsumption();
-		logger.debug("Calling setFuelEconomyat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setFuelEconomy();
-		logger.debug("Calling setFuelEconomywithMafat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setFuelEconomywithMaf();
-		logger.debug("Calling setFuelEconomyNoMaf at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setFuelEconomyNoMaf();
-		logger.debug("Calling setTimingAdvance at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setTimingAdvance();
-		logger.debug("Calling setDtcCode at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setDtcCode();
-		logger.debug("Calling Oxygen1 at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setOxygenSensor1();
-		logger.debug("Calling setEquivRatio at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
-		this.setEquivRatio();
+			logger.trace("Calling setIntakeManifoldPressureat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart );
+			this.setIntakeManifoldPressure();
+			logger.debug("Timing - setIntakeManifoldPressureat {} ms ", System.currentTimeMillis() - commandStart );
 
-		logger.debug("Finished refreshing OBD Data. Total time was {}", System.currentTimeMillis() - refreshStart );
+			logger.trace("Calling setMaf at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setMassAirflow();
+			logger.debug("Timing - setMaf {} ms ", System.currentTimeMillis() - commandStart );
+
+
+			logger.trace("Calling setLTFT at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setLTFT_1();
+			logger.debug("Timing - setLTFT {} ms ", System.currentTimeMillis() - commandStart );
+
+
+			logger.trace("Calling setAirIntakeTemp at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart );
+			this.setAirIntakeTemp();
+			logger.debug("Timing - setAirIntakeTemp {} ms ", System.currentTimeMillis() - commandStart );
+
+
+			logger.trace("Calling setAmbientAirTemp at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setAmbientAirTemp();
+			logger.debug("Timing - setAmbientAirTemp {} ms ", System.currentTimeMillis() - commandStart );
+
+
+
+			logger.trace("Calling setBarometricPressureat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setBarometricPressure();
+			logger.debug("Timing - setBarometricPressureat {} ms ", System.currentTimeMillis() - commandStart );
+
+			logger.trace("Calling setFuelPressure at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setFuelPressure();
+			logger.debug("Timing - setFuelPressure {} ms ", System.currentTimeMillis() - commandStart );		
+
+			logger.trace("Calling setEngineRunTimeat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setEngineRuntime();
+			logger.debug("Timing - setEngineRunTimeat {} ms ", System.currentTimeMillis() - commandStart );
+
+
+			logger.trace("Calling setDistanceTravaledSinceCodesCleared {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setDistanceTravaledSinceCodesCleared();
+			logger.debug("Timing - setDistanceTravaledSinceCodesCleared {} ms ", System.currentTimeMillis() - commandStart );
+
+			logger.trace("Calling setThrottleat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setThrottle();
+			logger.debug("Timing - setThrottleat {} ms ", System.currentTimeMillis() - commandStart );
+
+			logger.trace("Calling setFuelLevelat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setFuelLevel();
+			logger.debug("Timing - setFuelLevelat {} ms ", System.currentTimeMillis() - commandStart );
+
+			logger.trace("Calling setFuelTypeat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setFuelType();
+			logger.debug("Timing - setFuelTypeat {} ms ", System.currentTimeMillis() - commandStart );
+
+			
+			logger.trace("Calling setFuelStatus at {}", System.currentTimeMillis());
+			this.setFuelStatus();
+			logger.debug("Timing - setFuelStatus at {} ms ", System.currentTimeMillis() - commandStart );
+
+			
+			
+			logger.trace("Calling setFuelConsumptionat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setFuelConsumption();
+			logger.debug("Timing - setFuelConsumptionat {} ms ", System.currentTimeMillis() - commandStart );
+
+			logger.trace("Calling setFuelEconomyat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setFuelEconomy();
+			logger.debug("Timing - setFuelEconomyat {} ms ", System.currentTimeMillis() - commandStart );
+
+			logger.trace("Calling setFuelEconomywithMafat {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setFuelEconomywithMaf();
+			logger.debug("Timing - setFuelEconomywithMafat {} ms ", System.currentTimeMillis() - commandStart );
+
+			logger.trace("Calling setFuelEconomyNoMaf at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setFuelEconomyNoMaf();
+			logger.debug("Timing - setFuelEconomyNoMaf {} ms ", System.currentTimeMillis() - commandStart );
+
+			logger.trace("Calling setTimingAdvance at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setTimingAdvance();
+			logger.debug("Timing - setTimingAdvance {} ms ", System.currentTimeMillis() - commandStart );
+
+			logger.trace("Calling setDtcCode at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setDtcCode();
+			logger.debug("Timing - setDtcCode {} ms ", System.currentTimeMillis() - commandStart );
+
+			logger.trace("Calling Oxygen1 at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setOxygenSensor1();
+			logger.debug("Timing - Oxygen1 {} ms ", System.currentTimeMillis() - commandStart );
+
+			logger.trace("Calling setEquivRatio at {}, previous command took {} ms", System.currentTimeMillis(), System.currentTimeMillis() - commandStart  );
+			this.setEquivRatio();
+			logger.debug("Timing - setEquivRatio {} ms ", System.currentTimeMillis() - commandStart );
+		}
+
+		logger.debug("OBD Refresh End ({} ms).", System.currentTimeMillis() - refreshStart );
+
 	} catch (IOException e) {
 		// TODO Auto-generated catch block
-		logger.debug("Serial IO failure at {}", System.currentTimeMillis() );
+		logger.error("Serial IO failure at {}", System.currentTimeMillis() );
+		logger.debug("OBD Refresh Ended due to previous error.  ({} ms).", System.currentTimeMillis() - refreshStart );
 		throw new IOException (e);
 	} catch ( NoDataException ndex ) {
-		logger.debug("No Data - {} at ", ndex.toString(), System.currentTimeMillis());
+		logger.trace("No Data - {} at ", ndex.toString(), System.currentTimeMillis());
 		noData = true;
 		//Add catch for UNABLE TO CONNECT. This would return a status from refresh and be treated at the Binging. 
 		//return 1;
 	} catch ( UnableToConnectException cntdex ) {
-		logger.debug("Unable to Connect Exception - {} at ", cntdex.toString(), System.currentTimeMillis());
+		logger.trace("Unable to Connect Exception - {} at ", cntdex.toString(), System.currentTimeMillis());
 		invalidateObjects();
 		//Add catch for UNABLE TO CONNECT. This would return a status from refresh and be treated at the Binging. 
+		logger.debug("OBD Refresh Ended due to previous error.  ({} ms).", System.currentTimeMillis() - refreshStart );
 		return -2;
 	} catch ( Exception ex ) 
 	{
-		logger.debug ( "Exception while pooling from OBD - {} - at ts {}", ex.toString(), System.currentTimeMillis());
+		logger.error ( "Exception while pooling from OBD - {} - at ts {}", ex.toString(), System.currentTimeMillis());
 		ex.printStackTrace();
+		logger.debug("OBD Refresh Ended due to previous error.  ({} ms).", System.currentTimeMillis() - refreshStart );
 		return -1;
 	}
-	
-	logger.debug("Refresh Done" );
-	
-	if (noData) { 
-		return 1; } 
-	else {
-		return 0;
+
+	logger.trace("Refresh Done" );
+
+	if (ignitionStatus) {
+		if (noData) { 
+			return 1; } 
+		else {
+			return 0;
+		}
+	} else {
+		//this.invalidateObjects();
+		// Method to reset the OBD data, since we wont be pooling. 
+		
+		return 3;
 	}
 
 }
 
 
+private void resetValues() {
+		// TODO This method sucks. 
+		// What we need to do is to find a way for the Object to return the actual failure for the object. 
+		// This invalidated object should not be necessary. 
+		
+		logger.trace("Reseting Object Valus");
+		airIntakeTemperatureCommand.reset();
+		fuelTrimObdCommand.reset();
+		ambientAirTemperatureCommand.reset();
+		engineCoolantTemperatureCommand.reset();
+		intakeManifoldPressureCommand.reset();
+		engineLoadCommand.reset();
+		engineRPMCommand.reset();
+		speedCommand.reset();
+		massAirFlowObdCommand.reset();
+		throttlePositionCommand.reset();
+		fuelLevelCommand.reset();
+		findFuelTypeCommand.reset();
+		fuelConsumptionCommand.reset();
+		oxygen1Command.reset();
+		fuelEconomyCommand.reset();	
+}
+	
 private void invalidateObjects() {
 	// TODO This method sucks. 
 	// What we need to do is to find a way for the Object to return the actual failure for the object. 
 	// This invalidated object should not be necessary. 
 	
-	logger.debug("Invalidating Object States");
+	logger.trace("Invalidating Object States");
 	airIntakeTemperatureCommand.isValid(false);
 	fuelTrimObdCommand.isValid(false);
 	ambientAirTemperatureCommand.isValid(false);
@@ -354,6 +483,9 @@ private void invalidateObjects() {
 
 public void init(SerialPort serialPort ) {
 	init ( serialPort, commDelay );
+	
+
+
 }
 
 public void init(SerialPort serialPort, int delay ) {
@@ -362,10 +494,14 @@ public void init(SerialPort serialPort, int delay ) {
 	
 	this.setDelay(delay);
 	
-	// This needs to be better. Like either a loop trough the objects, or during instantiation. 
+	// gearList array Initialization 
+	gearList = new int[] {0,0,0,0,0,0,0,0};
+	
+	
 }
 
 public void setDelay (int delay) {
+	// This needs to be better. Like either a loop trough the objects, or during instantiation. 
 	airIntakeTemperatureCommand.setCommDelay(delay);
 	fuelTrimObdCommand.setCommDelay(delay);
 	ambientAirTemperatureCommand.setCommDelay(delay);
@@ -451,6 +587,8 @@ public float getMPG() {
 public float getKML() {
 	return (this.getMPG()*0.425143707f);
 }
+
+
 /**
  * @return the MPG from Long Term TRIM on Bank 1
  */
@@ -512,6 +650,19 @@ public int getIntakeManifoldPressure() {
 	return IntakeManifoldPressure;
 }
 
+public boolean getIgnition() {
+	/*try {
+		this.setIntakeManifoldPressure();
+	} catch (Exception e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}*/
+	
+	if (this.engineRpm > 0) { 
+		return true;
+	}
+	return false;
+}
 
 /**
  * @return the engineLoad
@@ -538,6 +689,100 @@ public String getEngineRuntime() {
 		e.printStackTrace();
 	}*/
 	return engineRuntime;
+}
+
+/**
+ * @return the engineRuntime
+ */
+public int getDistanceTravaledSinceCodesCleared() {
+	/*try {
+		this.setEngineRuntime();
+	} catch (Exception e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}*/
+	return this.distanceTraveledSinceCodesCleared;
+}
+
+/**
+ * @return the engineRuntime
+ */
+public double getBatteryVoltage() {
+	/*try {
+		this.setEngineRuntime();
+	} catch (Exception e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}*/
+	return this.batteryVoltage;
+}
+
+
+/**
+ * @return the engineRuntime
+ */
+public int getCurrentGear() {
+	
+	// Formula for RPM is (speed * gearratio * 5305 (for km/h))/tire diameter (mm). 
+    //  var speed = (OBD_obdspeed.state as DecimalType).intValue
+    //    var rpm  = (OBD_enginerpm.state as DecimalType).intValue
+        
+    int min = 8000;
+	int closest = 0;
+	
+        if (this.speed  == 0) {
+        	logger.trace( "Calculated gear is 0 since speed is 0" ) ;
+    		closest =  0;        	
+        } else {
+        	logger.trace( "Input for gear calculatio is RPM {} and speed {} ", this.engineRpm , this.speed ); 
+	        
+        	//List<Integer> gearList = new ArrayList<Integer>();
+        	gearList[0]=(700);
+        	gearList[1]=((int) ((this.speed  * 12.9 * 5305)/621));
+	        gearList[2]=((int) ((this.speed  * 7.4 * 5305)/621));
+	        gearList[3]=((int) ((this.speed  * 5.1 * 5305)/621));
+	        gearList[4]=((int) ((this.speed  * 4.0 * 5305)/621));
+	        gearList[5]=((int) ((this.speed  * 3.2 * 5305)/621));
+	        
+	        
+        	logger.trace("Gear list populated with {}, {}, {}, {}, {}, {}",gearList[0], gearList[1], gearList[2], gearList[3], gearList[4], gearList[5] );
+        	
+        	/*gearList = new int[] {700,
+        			(int) ((this.speed  * 12.9 * 5305)/621),
+        			(int) ((this.speed  * 7.4 * 5305)/621),
+        			(int) ((this.speed  * 5.1 * 5305)/621),
+        			(int) ((this.speed  * 4.0 * 5305)/621),
+        			(int) ((this.speed  * 4.0 * 5305)/621),
+        			(int) ((this.speed  * 3.2 * 5305)/621)};*/
+        	
+        	/*gearList.add(700);
+        	gearList.add((int) ((this.speed  * 12.9 * 5305)/621));
+	        gearList.add((int) ((this.speed  * 7.4 * 5305)/621));
+	        gearList.add((int) ((this.speed  * 5.1 * 5305)/621));
+	        gearList.add((int) ((this.speed  * 4.0 * 5305)/621));
+	        gearList.add((int) ((this.speed  * 3.2 * 5305)/621)); */
+	        //var rpm6th = (speed * 0 * 5305)/621
+	 
+	 		//int[] myList = Ints.asList (g0,g1,g2,g3,g4,g5);
+	        //var double[] gearRatio = newArrayList( 12.9 , 7.4 , 5.1 , 4.0 , 3.2  )
+	        
+	        //myList[1] = 
+	       
+	       
+	       int i = 0;
+	   	   while((i=i+1) < 6)  {
+	         	int diff = Math.abs((int) (gearList[i] - this.engineRpm ));
+	
+	        if (diff < min ) {
+	            min = diff;
+	            closest = i;
+	        }
+	   	   }	
+        }
+	    logger.trace ( "Calculated gear  is {} with a differente of {}", closest, min ); 
+	    return closest;
+      
+	    //return this.distanceTraveledSinceCodesCleared;
 }
 
 
@@ -640,6 +885,20 @@ public float getFuelConsumption() {
 
 
 /**
+ * @return the fuelStatus
+ */
+public int getFuelStatus() {
+	/*try {
+		this.setFuelConsumption();
+	} catch (Exception e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}*/
+	return fuelStatus;
+}
+
+
+/**
  * @return the fuelEconomy
  */
 public float getFuelEconomy() {
@@ -735,12 +994,12 @@ private void setAirIntakeTemp() throws Exception {
 	}
 	catch ( NoDataException nd ) {
 			AirIntakeTemp = defaultAIT;
-			logger.debug("Error getting AirtakeTemp : {}. Using Default {}.", nd.toString(), defaultAIT);
+			logger.trace("Error getting AirtakeTemp : {}. Using Default {}.", nd.toString(), defaultAIT);
 			throw nd;
 	
 	} catch ( Exception e ) {
 		AirIntakeTemp = defaultAIT;
-		logger.debug("Error getting AirtakeTemp : {}. Using Default {}.", e.toString(), defaultAIT);
+		logger.trace("Error getting AirtakeTemp : {}. Using Default {}.", e.toString(), defaultAIT);
 		//throw e;
 	}
 
@@ -765,9 +1024,12 @@ private void setMassAirflow() throws Exception  {
 		maf = (imap/120)*(engineVE/100)*(1.589f)*(28.97f)/(8.314f);
 		logger.trace("Calculated MAF since no real sensor data available. Result was {} for imap {}", maf, imap );
 	}
+	if (Double.isNaN(maf)) { 
+		maf = INVALID;
+	}
 	} catch ( Exception e ) {
 		maf = INVALID;
-		logger.debug("Error getting MassAirFlow : {}", e.toString());
+		logger.trace("Error setting MassAirFlow : {}", e.toString());
 		throw e;
 	}
 }
@@ -789,7 +1051,7 @@ private void setLTFT_1() throws Exception  {
 	
 	} catch ( Exception e ) {
 		LTFT_1 = INVALID;
-		logger.debug("Error getting LTFT_1 : {}", e.toString());
+		logger.trace("Error getting LTFT_1 : {}", e.toString());
 		throw e;
 	}
 }
@@ -809,7 +1071,7 @@ private void setAmbientAirTemp() throws Exception  {
 	}
 	} catch ( Exception e ) {
 		this.AmbientAirTemp = INVALID;
-		logger.debug("Error getting AmbientAirTemp : {}", e.toString());
+		logger.trace("Error getting AmbientAirTemp : {}", e.toString());
 		throw e;
 	}
 }
@@ -834,7 +1096,7 @@ private void setEngineCoolantTemp()  throws Exception  {
 			throw  iex;
 		} catch ( Exception e ) {
 			this.EngineCoolantTemp = INVALID;
-			logger.debug("Error getting EngineCoolantTemp : {}", e.toString());
+			logger.trace("Error getting EngineCoolantTemp : {}", e.toString());
 			throw e;
 		} 
 }
@@ -877,7 +1139,45 @@ private void setIntakeManifoldPressure() throws  Exception  {
 		throw new IOException (iex);
 	} catch ( InterruptedException e) {
 		this.IntakeManifoldPressure = (int) INVALID;
-		logger.debug("Error getting IntakeManifoldPressure : {}", e.toString());
+		logger.trace("Error getting IntakeManifoldPressure : {}", e.toString());
+		e.printStackTrace();
+		throw e;
+	}
+}
+
+
+private void setIgnitionStatus () throws  Exception  {
+	
+	commandStart = System.currentTimeMillis();
+	try {
+		if ( checkIgnitionObd ) { 
+			ignitionObdCommand.run(serialPort.getInputStream(), serialPort.getOutputStream());
+			if (ignitionObdCommand.isValid()) {
+				this.ignitionStatus = ignitionObdCommand.getStatus();
+			}
+		}
+		if ( !checkIgnitionObd || !ignitionObdCommand.isValid() ) {
+			if (batteryVoltageCommand.isValid()) { 
+				if (this.batteryVoltage > 13) 
+				{  this.ignitionStatus = true; }
+				else 
+				{ this.ignitionStatus = false; };				
+			} else { 
+				this.setEngineRpm();
+				if (this.engineRpm > 0) 
+					{  this.ignitionStatus = true; }
+				else 
+					{ this.ignitionStatus = false; };	
+			}
+		}
+	} catch ( IOException  iex ){
+		throw new IOException (iex);
+	} catch ( NoDataException ndex ) {
+			logger.trace("No Data getting ignition status. Setting ignition to false");
+			this.ignitionStatus = false;
+	} catch ( InterruptedException e) {
+		this.IntakeManifoldPressure = (int) INVALID;
+		logger.trace("Error getting Ignition Status : {}", e.toString());
 		e.printStackTrace();
 		throw e;
 	}
@@ -902,7 +1202,7 @@ private void setEngineLoad()  throws Exception  {
 			throw new IOException (iex);
 		} catch ( Exception e ) {
 			this.EngineLoad = INVALID;
-			logger.debug("Error getting EngineLoad : {}", e.toString());
+			logger.trace("Error getting EngineLoad : {}", e.toString());
 			throw e;
 			
 		}
@@ -917,6 +1217,52 @@ private void setEngineRuntime() {
 	commandStart = System.currentTimeMillis();
 	this.engineRuntime = "";
 }
+
+/**
+ * @param DistanceTravaledSinceCodesCleared the engineRuntime to set
+ */
+private void setDistanceTravaledSinceCodesCleared()  throws  Exception {
+	commandStart = System.currentTimeMillis();
+	try {
+		distanceTraveledSinceCodesClearedCommand.run(serialPort.getInputStream(), serialPort.getOutputStream());
+		this.distanceTraveledSinceCodesCleared = distanceTraveledSinceCodesClearedCommand.getKm();
+		/*if ( distanceTraveledSinceCodesClearedCommand.isValid() ) {
+			 this.distanceTraveledSinceCodesCleared = distanceTraveledSinceCodesClearedCommand.getKm();
+			 this.distanceTraveledSinceCodesCleared = distanceTraveledSinceCodesClearedCommand.getKm();
+		 } else {
+			 this.distanceTraveledSinceCodesCleared = (int) INVALID;
+		 }*/
+	} catch ( IOException  iex ){
+		throw new IOException (iex);
+	} catch ( Exception e ) {
+		this.engineRpm = 0;
+		logger.trace("Error getting  distanceTraveledSinceCodesCleared: {}", e.toString());
+		throw e;
+	}
+}
+
+
+/**
+ * @param DistanceTravaledSinceCodesCleared the engineRuntime to set
+ */
+private void setBatteryVoltage()  throws  Exception {
+	commandStart = System.currentTimeMillis();
+	try {
+		batteryVoltageCommand.run(serialPort.getInputStream(), serialPort.getOutputStream());
+		 if ( batteryVoltageCommand.isValid() ) {
+			 this.batteryVoltage = batteryVoltageCommand.getVoltage();
+		 } else {
+			 this.batteryVoltage = -1;
+		 }
+	} catch ( IOException  iex ){
+		throw new IOException (iex);
+	} catch ( Exception e ) {
+		this.engineRpm = 0;
+		logger.trace("Error getting  battery voltage: {}", e.toString());
+		throw e;
+	}
+}
+
 
 
 /**
@@ -937,7 +1283,7 @@ private void setEngineRpm() throws  Exception  {
 		throw new IOException (iex);
 	} catch ( Exception e ) {
 		this.engineRpm = 0;
-		logger.debug("Error getting RPM : {}", e.toString());
+		logger.trace("Error getting RPM : {}", e.toString());
 		throw e;
 	}
 }
@@ -961,7 +1307,7 @@ private void setSpeed()  throws Exception  {
 		throw new IOException (iex);
 	} catch (Exception e ) {
 		this.speed = 0;
-		logger.debug("Error getting Speed : {}", e.toString());
+		logger.trace("Error getting Speed : {}", e.toString());
 		e.printStackTrace();
 		throw e;
 	}
@@ -985,7 +1331,7 @@ private void setThrottle() throws Exception  {
 		}
 	} catch (Exception e ) {
 		this.throttle = 0;
-		logger.debug("Error getting Throttle : {}", e.toString());
+		logger.trace("Error getting Throttle : {}", e.toString());
 		throw e;
 	}
 }
@@ -1006,7 +1352,7 @@ private void setFuelLevel() throws Exception  {
 		}
 	} catch (Exception e ) {
 		this.fuelLevel = INVALID;
-		logger.debug("Error getting FuelLevel : {}", e.toString());
+		logger.trace("Error getting FuelLevel : {}", e.toString());
 		throw e;
 	}
 }
@@ -1023,7 +1369,7 @@ private void setFuelType() throws Exception  {
 		this.fuelType = findFuelTypeCommand.getFormattedResult();
 	} catch (Exception e ) {
 		this.fuelType = "ERROR";
-		logger.debug("Error getting FuelType : {}", e.toString());
+		logger.trace("Error getting FuelType : {}", e.toString());
 		throw e;
 	}
 }
@@ -1045,10 +1391,33 @@ private void setFuelConsumption() throws Exception  {
 		}
 	} catch (Exception e ) {
 		this.fuelConsumption = 0;
-		logger.debug("Error getting FuelConsumption : {}", e.toString());
+		logger.trace("Error getting FuelConsumption : {}", e.toString());
 		throw e;
 	}
 }
+
+
+/**
+ * @param fuelConsumption the fuelConsumption to set
+ */
+private void setFuelStatus() throws Exception  {
+	
+	commandStart = System.currentTimeMillis();
+	try {
+		fuelStatusCommand.run(serialPort.getInputStream(), serialPort.getOutputStream());
+		if (fuelStatusCommand.isValid()) {
+			this.fuelStatus = fuelStatusCommand.getStatus();
+		} else 
+		{
+			this.fuelStatus = 0;
+		}
+	} catch (Exception e ) {
+		this.fuelStatus = 0;
+		logger.error("Error getting FuelConsumption : {}", e.toString());
+		throw e;
+	}
+}
+
 
 private void setOxygenSensor1() throws Exception  {
 	
@@ -1068,7 +1437,7 @@ private void setOxygenSensor1() throws Exception  {
 	} catch (Exception e ) {
 		this.oxygen1Pct = INVALID;
 		this.oxygen1Voltage = INVALID;
-		logger.debug("Error setting oxygenSensor1 : {}", e.toString());
+		logger.trace("Error setting oxygenSensor1 : {}", e.toString());
 		throw e;
 	}
 }

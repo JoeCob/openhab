@@ -28,7 +28,8 @@ public class DistanceTraveledSinceCodesClearedObdCommand extends ObdCommand
    * Default ctor.
    */
   public DistanceTraveledSinceCodesClearedObdCommand() {
-    super("0131");
+    super("0131 01");
+    this.setCheckFrequency(60000);
   }
 
   /**
@@ -44,7 +45,10 @@ public class DistanceTraveledSinceCodesClearedObdCommand extends ObdCommand
   @Override
   protected void performCalculations() {
     // ignore first two bytes [01 31] of the response
-    km = buffer.get(2) * 256 + buffer.get(3);
+	  if (isValid()) {
+		  km = buffer.get(2) * 256 + buffer.get(3);}
+	  else 
+	  { km = -1; }
   }
 
   @Override

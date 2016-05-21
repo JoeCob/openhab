@@ -25,8 +25,8 @@ public class SpeedObdCommand extends ObdCommand implements SystemOfUnits {
    * Default ctor.
    */
   public SpeedObdCommand() {
-    super("010D 01");
-    this.setCheckFrequency(1000);
+    super("010D1");
+    this.setCheckFrequency(100);
   }
 
   /**
